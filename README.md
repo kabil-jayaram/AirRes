@@ -40,3 +40,7 @@ Happy coding!
 ## TODO ⏰
 - Display Staff Information
 - Display Available Flight in Staff Menu
+- Display Available Flights from source to destination when booking
+- Display when no booking found
+- Debugging
+- Add booking id to booking
