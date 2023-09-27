@@ -36,3 +36,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 Special thanks to the open-source community for valuable contributions and inspirations.\
 
 Happy coding!
+
+## TODO ⏰
+- Display Staff Information
+- Display Available Flight in Staff Menu
