@@ -42,5 +42,4 @@ Happy coding!
 - ~~Display Available Flight in Staff Menu~~
 - ~~Display Available Flights from source to destination when booking~~
 - ~~Display when no booking found~~
-- Debugging
-- Add booking id to booking
+- ~~Add booking id to booking~~
