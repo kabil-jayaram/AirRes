@@ -1,5 +1,5 @@
-# Ignore all .txt files
-*.txt
+# Ignore all .dat files
+*.dat
 # Ignore all .class files
 *.class
 # Ignore all .idea files

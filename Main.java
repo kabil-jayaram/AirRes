@@ -1,67 +1,85 @@
 import java.io.*;
-import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 class Main {
     static Scanner sc = new Scanner(System.in);
-    static List<Flight> flights = new ArrayList<>();
-    static List<Booking> bookings = new ArrayList<>();
-    static List<StaffAccount> staffAccounts = new ArrayList<>();
-    static List<AdminAccount> adminAccounts = new ArrayList<>();
-    static List<CustomerAccount> customerAccounts = new ArrayList<>();
+    public static List<Flight> flights = new ArrayList<>();
+    public static List<Booking> bookings = new ArrayList<>();
+    public static List<StaffAccount> staffAccounts = new ArrayList<>();
+    public static List<AdminAccount> adminAccounts = new ArrayList<>();
+    public static List<CustomerAccount> customerAccounts = new ArrayList<>();
     static int flag = 0;
     static CustomerAccount currentCustomer = null;
 
     public static void main(String[] args) {
-        // Load data from files only if they are not empty
-        if (areFilesNonEmpty("flights.txt", "bookings.txt", "staff.txt", "admin_accounts.txt", "customer_accounts.txt")) {
+        // Register a shutdown hook
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            saveFlightsAndBookings();
+            saveStaffAccounts();
+            saveAdminAccounts();
+            saveCustomerAccounts();
+        }));
+
             loadFlightsAndBookings();
             loadStaffAccounts();
             loadAdminAccounts();
             loadCustomerAccounts();
-        }
 
         int ch = 0;
-        while (ch != 8) {
+        while (ch != 9) {
             try {
                 System.out.println("Login Menu");
-                System.out.println("1 - Admin Login");
-                System.out.println("2 - Staff Login");
-                System.out.println("3 - Staff Account Recovery");
-                System.out.println("4 - Customer SignUp");
-                System.out.println("5 - Customer Login");
-                System.out.println("6 - Customer Account Recovery");
-                System.out.println("7 - Delete Customer Account");
-                System.out.println("8 - Exit");
+                System.out.println("1 - Admin SignUp");
+                System.out.println("2 - Admin Login");
+                System.out.println("3 - Staff Login");
+                System.out.println("4 - Staff Account Recovery");
+                System.out.println("5 - Customer SignUp");
+                System.out.println("6 - Customer Login");
+                System.out.println("7 - Customer Account Recovery");
+                System.out.println("8 - Delete Customer Account");
+                System.out.println("9 - Exit");
 
                 System.out.print("Enter your choice: ");
-                ch = sc.nextInt();
-                sc.nextLine(); // Consume newline
+                String input = sc.nextLine().trim(); // Get the user input and remove leading/trailing spaces
+
+                if (input.isEmpty()) {
+                    System.out.println("Invalid input. Please enter a valid index.");
+                    continue; // Restart the loop if input is empty
+                }
+
+                try {
+                    ch = Integer.parseInt(input);
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input. Please enter a valid index.");
+                    continue; // Restart the loop if input is not a valid integer
+                }
 
                 switch (ch) {
                     case 1:
-                        adminLogin(sc);
+                        adminSignUp(sc);
                         break;
                     case 2:
-                        staffLogin(sc);
+                        adminLogin(sc);
                         break;
                     case 3:
-                        staffRecovery(sc);
+                        staffLogin(sc);
                         break;
                     case 4:
-                        customerSignUp(sc);
+                        staffRecovery(sc);
                         break;
                     case 5:
-                        customerLogin(sc);
+                        customerSignUp(sc);
                         break;
                     case 6:
-                        customerRecovery(sc);
+                        customerLogin(sc);
                         break;
                     case 7:
-                        deleteCustomer(sc);
+                        customerRecovery(sc);
                         break;
                     case 8:
+                        deleteCustomer(sc);
+                        break;
+                    case 9:
                         System.out.println("Thank You for using our services");
                         break;
                     default:
@@ -69,14 +87,92 @@ class Main {
                         break;
                 }
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.");
+                System.out.println("Invalid input. Please enter a valid option.\n");
                 sc.nextLine(); // Consume the invalid input
             }
         }
-        saveFlightsAndBookings();
-        saveStaffAccounts();
-        saveAdminAccounts();
-        saveCustomerAccounts();
+    }
+
+    public static String getInputField(String inputField, Scanner sc) {
+        System.out.print("Enter the " + inputField + ": ");
+        String input = sc.nextLine();
+        if (input.isBlank()) {
+            System.out.println(inputField + " cannot be blank\n");
+            return getInputField(inputField, sc);
+        }
+        return input;
+    }
+
+    public static int parseIntWithValidation(String fieldName, Scanner sc) {
+        while (true) {
+            try {
+                System.out.print("Enter the " + fieldName + ": ");
+                int input = Integer.parseInt(sc.nextLine());
+                if (input < 0) {
+                    System.out.println(fieldName + " cannot be negative\n");
+                } else {
+                    return input;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid " + fieldName + ". Please enter a valid integer.\n");
+                parseIntWithValidation(fieldName, sc);
+            }
+        }
+    }
+
+    public static String getFormattedFlightID(String inputField, Scanner sc) {
+        while (true) {
+            System.out.print("Enter the " + inputField + ": ");
+            String input = sc.nextLine();
+            if (input.isBlank()) {
+                System.out.println(inputField + " cannot be blank\n");
+                continue;
+            }
+            try {
+                int id = Integer.parseInt(input);
+                if (id >= 0 && id <= 999) {
+                    // Format the ID to have three digits
+                    return String.format("%03d", id);
+                } else {
+                    System.out.println(inputField + " must be between 0 and 999\n");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid " + inputField + ". Please enter a valid integer.\n");
+            }
+        }
+    }
+
+    // Function to handle Admin sign-up
+    public static void adminSignUp(Scanner sc) {
+        try {
+            String username = getInputField("Admin Username", sc);
+            
+            // Check if an admin account with the same username already exists
+            if (isAdminUsernameDuplicate(username)) {
+                System.out.println("Username is already in use. Please choose a different username.\n");
+                return; // Exit the method without signing up the admin
+            }
+            
+            String password = getInputField("Admin Password", sc);
+
+            // Create a new AdminAccount object and add it to the list
+            AdminAccount admin = new AdminAccount(username, password);
+            adminAccounts.add(admin); // Add the new account to the list
+            System.out.println("Admin Signed Up Successfully\n");
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid input. Please enter valid data.\n");
+            sc.nextLine(); // Consume the invalid input
+        }
+    }
+
+    // Helper method to check if an admin account with the same username exists
+    private static boolean isAdminUsernameDuplicate(String username) {
+        for (AdminAccount admin : adminAccounts) {
+            if (admin.getUsername().equalsIgnoreCase(username)) {
+                return true; // Username is already in use
+            }
+        }
+        return false; // Username is not a duplicate
     }
 
     // Function to handle Staff Account Recovery
@@ -85,14 +181,12 @@ class Main {
             System.out.println("No Staff available.\n");
         } else {
             try {
-                System.out.print("\nEnter the Staff Username: ");
-                String username = sc.nextLine();
+                String username = getInputField("Staff Username", sc);
                 for (StaffAccount staff : staffAccounts) {
                     flag = 0;
                     if (staff.getUsername().equalsIgnoreCase(username)) {
                         flag = 1;
-                        System.out.print("Enter the Staff Password: ");
-                        String password = sc.nextLine();
+                        String password = getInputField("Staff Password", sc);
                         staff.setPassword(password);
                         System.out.println("Staff Password Updated\n");
                     }
@@ -100,7 +194,7 @@ class Main {
                 if (flag == 0)
                     System.out.println("Invalid Username\n");
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.");
+                System.out.println("Invalid input. Please enter a valid option.\n");
                 sc.nextLine(); // Consume the invalid input
             }
         }
@@ -112,10 +206,8 @@ class Main {
             System.out.println("No Customer available.\n");
         } else {
             try {
-                System.out.print("\nEnter the Customer Username: ");
-                String username = sc.nextLine();
-                System.out.print("Enter the Customer Password: ");
-                String password = sc.nextLine();
+                String username = getInputField("Customer Username", sc);
+                String password = getInputField("Customer Password", sc);
                 for (CustomerAccount customer : customerAccounts) {
                     flag = 0;
                     if (customer.getUsername().equalsIgnoreCase(username) && customer.getPassword().equals(password)) {
@@ -127,7 +219,7 @@ class Main {
                 if (flag == 0)
                     System.out.println("Invalid Username or Password\n");
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.");
+                System.out.println("Invalid input. Please enter a valid option.\n");
                 sc.nextLine(); // Consume the invalid input
             }
         }
@@ -139,14 +231,12 @@ class Main {
             System.out.println("No Customer available.\n");
         } else {
             try {
-                System.out.print("\nEnter the Customer Username: ");
-                String username = sc.nextLine();
+                String username = getInputField("Customer Username", sc);
                 for (CustomerAccount customer : customerAccounts) {
                     flag = 0;
                     if (customer.getUsername().equalsIgnoreCase(username)) {
                         flag = 1;
-                        System.out.print("Enter the Customer Password: ");
-                        String password = sc.nextLine();
+                        String password = getInputField("Customer Password", sc);
                         customer.setPassword(password);
                         System.out.println("Customer Password Updated\n");
                         break;
@@ -155,7 +245,7 @@ class Main {
                 if (flag == 0)
                     System.out.println("Invalid Username\n");
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.");
+                System.out.println("Invalid input. Please enter a valid option.\n");
                 sc.nextLine(); // Consume the invalid input
             }
         }
@@ -210,15 +300,17 @@ class Main {
                 Console console = System.console();
                 if (console == null) {
                     // Console is not available, handle accordingly
-                    System.out.print("\nEnter the Admin Username: ");
-                    username = sc.nextLine();
-                    System.out.print("Enter the Admin Password: ");
-                    password = sc.nextLine();
+                    username = getInputField("Admin Username", sc);
+                    password = getInputField("Admin Password", sc);
                 } else {
-                    System.out.print("\nEnter the Admin Username: ");
-                    username = sc.nextLine();
-                    System.out.print("Enter the Admin Password: ");
+                    username = getInputField("Admin Username", sc);
+                    System.out.print("Enter the Customer Password: ");
                     password = maskPassword();
+                    if (password.isBlank())
+                    {
+                        System.out.println("Password cannot be blank\n");
+                        return;
+                    }
                 }
 
                 for (AdminAccount admin : adminAccounts) {
@@ -228,12 +320,13 @@ class Main {
                         flag = 1;
                         System.out.println("Welcome " + admin.getId() + " " + admin.getUsername());
                         Admin.admin_menu(sc);
+                        break;
                     }
                 }
                 if (flag == 0)
                     System.out.println("Invalid Username or Password\n");
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.");
+                System.out.println("Invalid input. Please enter a valid option.\n");
                 sc.nextLine(); // Consume the invalid input
             }
         }
@@ -254,15 +347,37 @@ class Main {
 
     // Function to handle Customer sign-up
     public static void customerSignUp(Scanner sc) {
-        System.out.print("\nEnter the Customer Username: ");
-        String username = sc.nextLine();
-        System.out.print("Enter the Customer Password: ");
-        String password = sc.nextLine();
+        try {
+            String username = getInputField("Customer Username", sc);
 
-        CustomerAccount customer = new CustomerAccount(username, password);
-        customerAccounts.add(customer);
-        System.out.println("Customer Signed Up\n");
+            // Check if a customer account with the same username already exists
+            if (isCustomerUsernameDuplicate(username)) {
+                System.out.println("Username is already in use. Please choose a different username.\n");
+                return; // Exit the method without signing up the customer
+            }
+            
+            String password = getInputField("Admin Password", sc);
+
+            // Create a new CustomerAccount object and add it to the list
+            CustomerAccount customer = new CustomerAccount(username, password);
+            customerAccounts.add(customer); // Add the new account to the list
+            System.out.println("Customer Signed Up Successfully\n");
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid input. Please enter valid data.\n");
+            sc.nextLine(); // Consume the invalid input
+        }
     }
+
+    // Helper method to check if a customer account with the same username exists
+    private static boolean isCustomerUsernameDuplicate(String username) {
+        for (CustomerAccount customer : customerAccounts) {
+            if (customer.getUsername().equalsIgnoreCase(username)) {
+                return true; // Username is already in use
+            }
+        }
+        return false; // Username is not a duplicate
+    }
+
 
     // Function to handle Customer login
     public static void customerLogin(Scanner sc) {
@@ -275,15 +390,17 @@ class Main {
             try {
                 Console console = System.console();
                 if (console == null) {
-                    System.out.print("\nEnter the Customer Username: ");
-                    username = sc.nextLine();
-                    System.out.print("Enter the Customer Password: ");
-                    password = sc.nextLine();
+                    username = getInputField("Customer Username", sc);
+                    password = getInputField("Customer Password", sc);
                 } else {
-                    System.out.print("\nEnter the Customer Username: ");
-                    username = sc.nextLine();
+                    username = getInputField("Customer Username", sc);
                     System.out.print("Enter the Customer Password: ");
                     password = maskPassword();
+                    if (password.isBlank())
+                    {
+                        System.out.println("Password cannot be blank\n");
+                        return;
+                    }
                 }
 
                 for (CustomerAccount customer : customerAccounts) {
@@ -294,12 +411,13 @@ class Main {
                         currentCustomer = customer;
                         System.out.println("Welcome " + currentCustomer.getId() + " " + currentCustomer.getUsername());
                         Customer.customer_menu(sc);
+                        break;
                     }
                 }
                 if (flag == 0)
                     System.out.println("Invalid Username or Password\n");
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.");
+                System.out.println("Invalid input. Please enter a valid option.\n");
                 sc.nextLine(); // Consume the invalid input
             }
         }
@@ -316,15 +434,17 @@ class Main {
             try {
                 Console console = System.console();
                 if (console == null) {
-                    System.out.print("\nEnter the Staff Username: ");
-                    username = sc.nextLine();
-                    System.out.print("Enter the Staff Password: ");
-                    password = sc.nextLine();
+                    username = getInputField("Staff Username", sc);
+                    password = getInputField("Staff Password", sc);
                 } else {
-                    System.out.print("\nEnter the Staff Username: ");
-                    username = sc.nextLine();
+                    username = getInputField("Staff Username", sc);
                     System.out.print("Enter the Staff Password: ");
                     password = maskPassword();
+                    if (password.isBlank())
+                    {
+                        System.out.println("Password cannot be blank\n");
+                        return;
+                    }
                 }
 
                 for (StaffAccount staff : staffAccounts) {
@@ -334,12 +454,13 @@ class Main {
                         flag = 1;
                         System.out.println("Welcome " + staff.getId() + " " + staff.getUsername());
                         Staff.staff_menu(sc);
+                        break;
                     }
                 }
                 if (flag == 0)
                     System.out.println("Invalid Username or Password\n");
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.");
+                System.out.println("Invalid input. Please enter a valid option.\n");
                 sc.nextLine(); // Consume the invalid input
             }
         }
@@ -347,13 +468,14 @@ class Main {
 
     // Function to load admin accounts from a file
     public static void loadAdminAccounts() {
-        try (Scanner scanner = new Scanner(new File("admin_accounts.txt"))) {
+        try (Scanner scanner = new Scanner(new File("admin_accounts.dat"))) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 String[] parts = line.split(" ");
-                if (parts.length == 2) {
-                    String username = parts[0];
-                    String password = parts[1];
+                if (parts.length == 3) {
+                    String id = parts[0];
+                    String username = parts[1];
+                    String password = parts[2];
                     AdminAccount admin = new AdminAccount(username, password);
                     adminAccounts.add(admin);
                 }
@@ -365,13 +487,14 @@ class Main {
 
     // Function to load customer accounts from a file
     public static void loadCustomerAccounts() {
-        try (Scanner scanner = new Scanner(new File("customer_accounts.txt"))) {
+        try (Scanner scanner = new Scanner(new File("customer_accounts.dat"))) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 String[] parts = line.split(" ");
-                if (parts.length == 2) {
-                    String username = parts[0];
-                    String password = parts[1];
+                if (parts.length == 3) {
+                    String id = parts[0];
+                    String username = parts[1];
+                    String password = parts[2];
                     CustomerAccount customer = new CustomerAccount(username, password);
                     customerAccounts.add(customer);
                 }
@@ -383,17 +506,29 @@ class Main {
 
     // Function to load staff accounts from a file
     public static void loadStaffAccounts() {
-        try (ObjectInputStream staffInput = new ObjectInputStream(new FileInputStream("staff_accounts.txt"))) {
-            staffAccounts = (List<StaffAccount>) staffInput.readObject();
-        } catch (IOException | ClassNotFoundException e) {
+        try (Scanner scanner = new Scanner(new File("staff_accounts.dat"))) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                String[] parts = line.split(" ");
+                if (parts.length == 3) {
+                    String id = parts[0];
+                    String username = parts[1];
+                    String password = parts[2];
+                    StaffAccount staff = new StaffAccount(username, password);
+                    staffAccounts.add(staff);
+                }
+            }        
+        } catch (FileNotFoundException e) {
             // Handle file not found exception
         }
     }
 
     // Function to save staff accounts to a file
     public static void saveStaffAccounts() {
-        try (ObjectOutputStream staffOutput = new ObjectOutputStream(new FileOutputStream("staff_accounts.txt"))) {
-            staffOutput.writeObject(staffAccounts);
+        try (PrintWriter writer = new PrintWriter(new File("staff_accounts.dat"))) {
+            for (StaffAccount staff : staffAccounts) {
+                writer.println(staff.getId() + " " + staff.getUsername() + " " + staff.getPassword());
+            }
         } catch (IOException e) {
             // Handle file not found exception
         }
@@ -401,9 +536,9 @@ class Main {
 
     // Function to save customer accounts to a file
     public static void saveCustomerAccounts() {
-        try (PrintWriter writer = new PrintWriter(new File("customer_accounts.txt"))) {
+        try (PrintWriter writer = new PrintWriter(new File("customer_accounts.dat"))) {
             for (CustomerAccount customer : customerAccounts) {
-                writer.println(customer.getUsername() + " " + customer.getPassword());
+                writer.println(customer.getId() + " " + customer.getUsername() + " " + customer.getPassword());
             }
         } catch (FileNotFoundException e) {
             // Handle file not found exception
@@ -412,9 +547,9 @@ class Main {
 
     // Function to save admin accounts to a file
     public static void saveAdminAccounts() {
-        try (PrintWriter writer = new PrintWriter(new File("admin_accounts.txt"))) {
+        try (PrintWriter writer = new PrintWriter(new File("admin_accounts.dat"))) {
             for (AdminAccount admin : adminAccounts) {
-                writer.println(admin.getUsername() + " " + admin.getPassword());
+                writer.println(admin.getId() + " " + admin.getUsername() + " " + admin.getPassword());
             }
         } catch (FileNotFoundException e) {
             // Handle file not found exception
@@ -434,8 +569,8 @@ class Main {
 
     // Function to load flights and bookings from files
     public static void loadFlightsAndBookings() {
-        try (ObjectInputStream flightsInput = new ObjectInputStream(new FileInputStream("flights.txt"));
-             ObjectInputStream bookingsInput = new ObjectInputStream(new FileInputStream("bookings.txt"))) {
+        try (ObjectInputStream flightsInput = new ObjectInputStream(new FileInputStream("flights.dat"));
+             ObjectInputStream bookingsInput = new ObjectInputStream(new FileInputStream("bookings.dat"))) {
             flights = (List<Flight>) flightsInput.readObject();
             bookings = (List<Booking>) bookingsInput.readObject();
         } catch (IOException | ClassNotFoundException e) {
@@ -445,8 +580,8 @@ class Main {
 
     // Function to save flights and bookings to files
     public static void saveFlightsAndBookings() {
-        try (ObjectOutputStream flightsOutput = new ObjectOutputStream(new FileOutputStream("flights.txt"));
-             ObjectOutputStream bookingsOutput = new ObjectOutputStream(new FileOutputStream("bookings.txt"))) {
+        try (ObjectOutputStream flightsOutput = new ObjectOutputStream(new FileOutputStream("flights.dat"));
+             ObjectOutputStream bookingsOutput = new ObjectOutputStream(new FileOutputStream("bookings.dat"))) {
             flightsOutput.writeObject(flights);
             bookingsOutput.writeObject(bookings);
         } catch (IOException e) {
@@ -454,23 +589,37 @@ class Main {
         }
     }
 
-        // Define a static inner class 'Staff' to handle staff-related operations.
+    // Define a static inner class 'Staff' to handle staff-related operations.
     static class Staff {
         // Method to display the staff menu and handle staff operations.
-        public static void staff_menu(Scanner sc) {
+        public static void staff_menu(Scanner sc)
+        {
+            Admin adm = new Admin();
             int ch = 0;
-            while (ch != 4) {
+            while (ch != 5) {
                 try {
                     // Display staff menu options.
                     System.out.println("\nStaff Menu");
                     System.out.println("1 - Update Flight Status");
                     System.out.println("2 - Update Seat Availability");
                     System.out.println("3 - Passenger Details");
-                    System.out.println("4 - Exit");
+                    System.out.println("4 - Display Flights");
+                    System.out.println("5 - Exit");
 
                     System.out.print("Enter your choice: ");
-                    ch = sc.nextInt();
-                    sc.nextLine(); // Consume newline
+                    String input = sc.nextLine().trim(); // Get the user input and remove leading/trailing spaces
+
+                    if (input.isEmpty()) {
+                        System.out.println("Invalid input. Please enter a valid index.");
+                        continue; // Restart the loop if input is empty
+                    }
+
+                    try {
+                        ch = Integer.parseInt(input);
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid input. Please enter a valid index.");
+                        continue; // Restart the loop if input is not a valid integer
+                    }
 
                     switch (ch) {
                         case 1:
@@ -481,13 +630,15 @@ class Main {
                             break;
                         case 3:
                             // Prompt for customer and flight information and display passenger details.
-                            System.out.print("\nEnter the Customer Id: ");
-                            String cus_id = sc.nextLine();
+                            String cus_id = getInputField("Customer Id", sc);
                             System.out.print("Enter the Flight Id: ");
-                            String flight_id = sc.nextLine();
+                            String flight_id = getFormattedFlightID("Flight ID", sc);
                             passenger_details(cus_id, flight_id);
                             break;
                         case 4:
+                            adm.display_flights();
+                            break;
+                        case 5:
                             System.out.println("Staff Logged Out\n");
                             break;
                         default:
@@ -507,14 +658,14 @@ class Main {
                 System.out.println("No Bookings available.\n");
             } else {
                 try {
-                    System.out.print("\nEnter the Flight ID: ");
-                    String id = sc.nextLine();
-                    System.out.print("Enter the Flight Name: ");
-                    String name = sc.nextLine();
-                    System.out.print("Enter the Source: ");
-                    String source = sc.nextLine();
-                    System.out.print("Enter the Destination: ");
-                    String destination = sc.nextLine();
+                    String id = getFormattedFlightID("Flight ID", sc);
+                    String name = getInputField("Flight Name", sc);
+                    String source = getInputField("Source", sc);
+                    String destination = getInputField("Destination", sc);
+                    if (source.equalsIgnoreCase(destination)) {
+                        System.out.println("Source and Destination cannot be the same\n");
+                        getInputField(destination, sc);
+                    }
                     for (Flight flight : flights) {
                         if (flight.getId().equalsIgnoreCase(id)) {
                             if (flight.getName().equalsIgnoreCase(name) && flight.getSource().equalsIgnoreCase(source)
@@ -545,10 +696,8 @@ class Main {
                 System.out.println("No Flights available.\n");
             } else {
                 try {
-                    System.out.print("\nEnter the Flight ID to update status: ");
-                    String id = sc.nextLine();
-                    System.out.print("Enter the new status: ");
-                    String newStatus = sc.nextLine();
+                    String id = getFormattedFlightID("Flight ID", sc);
+                    String newStatus = getInputField("new status", sc);
 
                     for (Flight flight : flights) {
                         if (flight.getId().equalsIgnoreCase(id)) {
@@ -573,13 +722,10 @@ class Main {
                 System.out.println("No Flights available.\n");
             } else {
                 try {
-                    System.out.print("\nEnter the Flight ID to update seat availability: ");
-                    String id = sc.nextLine();
-                    System.out.print("Enter the seat category (Normal/Business/First): ");
-                    String seatCategory = sc.nextLine();
-                    System.out.print("Enter the new seat count: ");
-                    int newSeatCount = sc.nextInt();
-
+                    String id = getFormattedFlightID("Flight ID", sc);
+                    String seatCategory = getInputField("seat category (Normal/Business/First)", sc);
+                    int newSeatCount = parseIntWithValidation("seat count", sc);
+                    
                     for (Flight flight : flights) {
                         if (flight.getId().equalsIgnoreCase(id)) {
                             if (seatCategory.equalsIgnoreCase("Normal")) {
@@ -625,287 +771,384 @@ class Main {
     }
         
         // Define a static inner class 'Admin' that extends 'Staff' to handle admin-specific operations.
-    static class Admin extends Staff {
-        // Method to display the admin menu and handle admin operations.
-        public static void admin_menu(Scanner sc) {
-            int ch = 0;
-            while (ch != 8) {
-                try {
-                    // Display admin menu options.
-                    System.out.println("\nAdmin Menu");
-                    System.out.println("1 - Add Flights");
-                    System.out.println("2 - Update Flights");
-                    System.out.println("3 - Delete Flights");
-                    System.out.println("4 - Display Flights");
-                    System.out.println("5 - Add Staff Account");
-                    System.out.println("6 - Delete Staff Account");
-                    System.out.println("7 - Update Staff Account");
-                    System.out.println("8 - Exit");
+        static class Admin extends Staff {
+            // Method to display the admin menu and handle admin operations.
+            public static void admin_menu(Scanner sc) {
+                int ch = 0;
+                while (ch != 9) {
+                    try {
+                        // Display admin menu options.
+                        System.out.println("\nAdmin Menu");
+                        System.out.println("1 - Add Flights");
+                        System.out.println("2 - Update Flights");
+                        System.out.println("3 - Delete Flights");
+                        System.out.println("4 - Display Flights");
+                        System.out.println("5 - Add Staff Account");
+                        System.out.println("6 - Delete Staff Account");
+                        System.out.println("7 - Update Staff Account");
+                        System.out.println("8 - Display Staff Accounts");
+                        System.out.println("9 - Exit");
 
-                    System.out.print("Enter your choice: ");
-                    ch = sc.nextInt();
-                    sc.nextLine(); // Consume newline
+                        System.out.print("Enter your choice: ");
+                        String input = sc.nextLine().trim(); // Get the user input and remove leading/trailing spaces
 
-                    switch (ch) {
-                        case 1:
-                            add_flights(sc);
-                            break;
-                        case 2:
-                            update_flights(sc);
-                            break;
-                        case 3:
-                            delete_flights(sc);
-                            break;
-                        case 4:
-                            display_flights();
-                            break;
-                        case 5:
-                            addStaffAccount(sc);
-                            break;
-                        case 6:
-                            deleteStaffAccount(sc);
-                            break;
-                        case 7:
-                            updateStaffAccount(sc);
-                            break;
-                        case 8:
-                            System.out.println("Admin Logged Out\n");
-                            break;
-                        default:
-                            System.out.println("Invalid choice. Please try again.\n");
-                            break;
+                        if (input.isEmpty()) {
+                            System.out.println("Invalid input. Please enter a valid index.");
+                            continue; // Restart the loop if input is empty
+                        }
+
+                        try {
+                            ch = Integer.parseInt(input);
+                        } catch (NumberFormatException e) {
+                            System.out.println("Invalid input. Please enter a valid index.");
+                            continue; // Restart the loop if input is not a valid integer
+                        }
+
+                        switch (ch) {
+                            case 1:
+                                add_flights(sc);
+                                break;
+                            case 2:
+                                update_flights(sc);
+                                break;
+                            case 3:
+                                delete_flights(sc);
+                                break;
+                            case 4:
+                                display_flights();
+                                break;
+                            case 5:
+                                addStaffAccount(sc);
+                                break;
+                            case 6:
+                                deleteStaffAccount(sc);
+                                break;
+                            case 7:
+                                updateStaffAccount(sc);
+                                break;
+                            case 8:
+                                displayStaffAccounts();
+                                break;
+                            case 9:
+                                System.out.println("Admin Logged Out\n");
+                                break;
+                            default:
+                                System.out.println("Invalid choice. Please try again.\n");
+                                break;
+                        }
+                    } catch (InputMismatchException e) {
+                        System.out.println("Invalid input. Please enter a valid option.\n");
+                        sc.nextLine(); // Consume the invalid input
                     }
-                } catch (InputMismatchException e) {
-                    System.out.println("Invalid input. Please enter a valid option.\n");
-                    sc.nextLine(); // Consume the invalid input
                 }
             }
-        }
 
-        // Method to delete a staff account.
-        public static void deleteStaffAccount(Scanner sc) {
-            if (staffAccounts.isEmpty()) {
-                System.out.println("No Staff available.\n");
-            } else {
-                try {
-                    System.out.print("\nEnter the Staff Username to delete: ");
-                    String username = sc.nextLine();
+            // Method to display staff accounts.
+            public static void displayStaffAccounts() {
+                if (staffAccounts.isEmpty()) {
+                    System.out.println("No Staff available.\n");
+                } else {
+                    System.out.println("\nStaff Accounts");
+                    System.out.println("Staff ID | Staff Username | Staff Password");
+                    for (StaffAccount staffAccount : staffAccounts)
+                        System.out.printf("%-9s| %-15s| %-14s%n", staffAccount.getId(), staffAccount.getUsername(), staffAccount.getPassword());
+                    System.out.println();
+                }
+            }
 
-                    boolean staffAccountFound = false;
-                    Iterator<StaffAccount> iterator = staffAccounts.iterator();
-                    while (iterator.hasNext()) {
-                        StaffAccount staffAccount = iterator.next();
-                        if (staffAccount.getUsername().equalsIgnoreCase(username)) {
-                            iterator.remove();
-                            staffAccountFound = true;
-                            System.out.println("Staff Account Deleted Successfully\n");
-                            break;
+            // Method to delete a staff account.
+            public static void deleteStaffAccount(Scanner sc) {
+                if (staffAccounts.isEmpty()) {
+                    System.out.println("No Staff available.\n");
+                } else {
+                    try {
+                        String username = getInputField("Staff Username", sc);                        
+
+                        boolean staffAccountFound = false;
+                        Iterator<StaffAccount> iterator = staffAccounts.iterator();
+                        while (iterator.hasNext()) {
+                            StaffAccount staffAccount = iterator.next();
+                            if (staffAccount.getUsername().equalsIgnoreCase(username)) {
+                                iterator.remove();
+                                staffAccountFound = true;
+                                System.out.println("Staff Account Deleted Successfully\n");
+                                break;
+                            }
                         }
-                    }
 
-                    if (!staffAccountFound) {
+                        if (!staffAccountFound) {
+                            System.out.println("Staff Username does not exist\n");
+                        }
+                    } catch (InputMismatchException e) {
+                        System.out.println("Invalid input. Please enter a valid Staff Username.\n");
+                        sc.nextLine(); // Consume the invalid input
+                    }
+                }
+            }
+
+            // Method to update a staff account's password.
+            public static void updateStaffAccount(Scanner sc) {
+                if (staffAccounts.isEmpty()) {
+                    System.out.println("No Staff available.\n");
+                } else {
+                    try {
+                        String username = getInputField("Staff Username", sc);
+                        String password = getInputField("Staff Password", sc);
+                        
+                        for (StaffAccount staffAccount : staffAccounts) {
+                            if (staffAccount.getUsername().equalsIgnoreCase(username)) {
+                                staffAccount.setPassword(password);
+                                System.out.println("Staff Account Updated Successfully\n");
+                                return; // Exit the method when the staff account is found and updated
+                            }
+                        }
+
+                        // Staff account not found, print error message
                         System.out.println("Staff Username does not exist\n");
+                    } catch (InputMismatchException e) {
+                        System.out.println("Invalid input. Please enter valid data.\n");
+                        sc.nextLine(); // Consume the invalid input
                     }
-                } catch (InputMismatchException e) {
-                    System.out.println("Invalid input. Please enter a valid Staff Username.\n");
-                    sc.nextLine(); // Consume the invalid input
                 }
             }
-        }
 
-        // Method to update a staff account's password.
-        public static void updateStaffAccount(Scanner sc) {
-            if (staffAccounts.isEmpty()) {
-                System.out.println("No Staff available.\n");
-            } else {
-                try {
-                    System.out.print("\nEnter the Staff Username to update: ");
-                    String username = sc.nextLine();
-                    System.out.print("Enter the new Staff Password: ");
-                    String password = sc.nextLine();
-
-                    for (StaffAccount staffAccount : staffAccounts) {
-                        if (staffAccount.getUsername().equalsIgnoreCase(username)) {
-                            staffAccount.setPassword(password);
-                            System.out.println("Staff Account Updated Successfully\n");
-                            return; // Exit the method when the staff account is found and updated
-                        }
-                    }
-
-                    // Staff account not found, print error message
-                    System.out.println("Staff Username does not exist\n");
-                } catch (InputMismatchException e) {
-                    System.out.println("Invalid input. Please enter valid data.\n");
-                    sc.nextLine(); // Consume the invalid input
+            // Method to display flight details.
+            public static void display_flights() {
+                if (flights.isEmpty()) {
+                    System.out.println("No Flights available.\n");
+                } else {
+                    System.out.println("\nFlight Details");
+                    System.out.println("Flight ID | Flight Name       | Source   | Destination | Time  | Status      | Price | Normal | Business Class | First Class ");
+                    for (Flight flight : flights)
+                        System.out.printf("%-10s| %-18s| %-9s| %-12s| %-6s| %-12s| %-6s| %-7s| %-15s| %-12s%n", flight.getId(), flight.getName(), flight.getSource(), flight.getDestination(), flight.getTime(), flight.getStatus(), flight.getPrice(), flight.getNormalSeats(), flight.getBusinessSeats(), flight.getFirstClassSeats());
+                    System.out.println();
                 }
             }
-        }
 
-        // Method to display flight details.
-        public static void display_flights() {
-            if (flights.isEmpty()) {
-                System.out.println("No Flights available.\n");
-            } else {
-                System.out.println("\nFlight Details");
-                System.out.println("Flight ID | Flight Name       | Source   | Destination | Time  | Status      | Price | Normal | Business Class | First Class ");
-                for (Flight flight : flights)
-                    System.out.printf("%-10s| %-18s| %-9s| %-12s| %-6s| %-12s| %-6s| %-7s| %-15s| %-12s%n", flight.getId(), flight.getName(), flight.getSource(), flight.getDestination(), flight.getTime(), flight.getStatus(), flight.getPrice(), flight.getNormalSeats(), flight.getBusinessSeats(), flight.getFirstClassSeats());
-                System.out.println();
-            }
-        }
+            // Method to add a new flight.
+            public static void add_flights(Scanner sc) {
+                String id = getFormattedFlightID("Flight ID", sc);
+                String name = getInputField("Flight Name", sc);
+                String source = getInputField("Source", sc);
+                String destination = getInputField("Destination", sc);
+                if (source.equalsIgnoreCase(destination)) {
+                    System.out.println("Source and Destination cannot be the same\n");
+                    getInputField(destination, sc);
+                }
+                String newTime = getInputField("New Time (HH:mm)", sc);
+                String status = getInputField("Status", sc);
+                int price = parseIntWithValidation("Price", sc);
+                int normalSeats = parseIntWithValidation("Normal Seats", sc);
+                int businessSeats = parseIntWithValidation("Business Class Seats", sc);
+                int firstClassSeats = parseIntWithValidation("First Class Seats", sc);
+                String luggageLimit = getInputField("Luggage Weight Limit (optional, press Enter to skip)", sc);
+                if (luggageLimit.isBlank()) {
+                    luggageLimit = "0";
+                }
 
-        // Method to add a new flight.
-        public static void add_flights(Scanner sc) {
-            try {
-                System.out.print("\nEnter the Flight ID: ");
-                String id = sc.nextLine();
-                System.out.print("Enter the Flight Name: ");
-                String name = sc.nextLine();
-                System.out.print("Enter the Source: ");
-                String source = sc.nextLine();
-                System.out.print("Enter the Destination: ");
-                String destination = sc.nextLine();
-                System.out.print("Enter the Time: ");
-                String time = sc.nextLine();
-                System.out.print("Enter the Status: ");
-                String status = sc.nextLine();
-                System.out.print("Enter the Price: ");
-                int price = sc.nextInt();
-                System.out.print("Enter the Normal Seats: ");
-                int normalSeats = sc.nextInt();
-                System.out.print("Enter the Business Class Seats: ");
-                int businessSeats = sc.nextInt();
-                System.out.print("Enter the First Class Seats: ");
-                int firstClassSeats = sc.nextInt();
-                sc.nextLine(); // Consume newline
-
-                System.out.print("Enter the Luggage Weight Limit (optional, press Enter to skip): ");
-                String luggageLimit = sc.nextLine();
-
-                // Create a new Flight object and add it to the list
-                Flight newFlight = new Flight(id, name, source, destination, time, status, price, normalSeats,
-                        businessSeats, firstClassSeats, luggageLimit);
-
+                // Add the flight to the list of flights
+                Flight newFlight = new Flight(id, name, source, destination, newTime, status, price, normalSeats, businessSeats, firstClassSeats, luggageLimit);
                 flights.add(newFlight);
-
                 System.out.println("Flight Added Successfully\n");
-            } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter valid data.\n");
-                sc.nextLine(); // Consume the invalid input
             }
-        }
 
-        // Method to update flight details.
-        public static void update_flights(Scanner sc) {
-            if (flights.isEmpty()) {
-                System.out.println("No Flights available.\n");
-            } else {
-                try {
-                    System.out.print("\nEnter the Flight ID to update: ");
-                    String id = sc.nextLine();
-                    System.out.print("Enter the new Flight Name: ");
-                    String name = sc.nextLine();
-                    System.out.print("Enter the new Source: ");
-                    String source = sc.nextLine();
-                    System.out.print("Enter the new Destination: ");
-                    String destination = sc.nextLine();
-                    System.out.print("Enter the new Time: ");
-                    String time = sc.nextLine();
-                    System.out.print("Enter the new Status: ");
-                    String status = sc.nextLine();
-                    System.out.print("Enter the new Price: ");
-                    int price = sc.nextInt();
-                    System.out.print("Enter the new Normal Seats: ");
-                    int normalSeats = sc.nextInt();
-                    System.out.print("Enter the new Business Class Seats: ");
-                    int businessSeats = sc.nextInt();
-                    System.out.print("Enter the new First Class Seats: ");
-                    int firstClassSeats = sc.nextInt();
-                    sc.nextLine(); // Consume newline
+            // Method to update flight details selectively.
+            public static void update_flights(Scanner sc) {
+                if (flights.isEmpty()) {
+                    System.out.println("No Flights available.\n");
+                } else {
+                    try {
+                        String id = getFormattedFlightID("Flight ID", sc);
 
-                    System.out.print("Enter the new Luggage Weight Limit (optional, press Enter to skip): ");
-                    String luggageLimit = sc.nextLine();
+                        Flight selectedFlight = null;
+                        for (Flight flight : flights) {
+                            if (flight.getId().equalsIgnoreCase(id)) {
+                                selectedFlight = flight;
+                                break;
+                            }
+                        }
 
-                    for (Flight flight : flights) {
-                        if (flight.getId().equalsIgnoreCase(id)) {
-                            flight.setName(name);
-                            flight.setSource(source);
-                            flight.setDestination(destination);
-                            flight.setTime(time);
-                            flight.setStatus(status);
-                            flight.setPrice(price);
-                            flight.setNormalSeats(normalSeats);
-                            flight.setBusinessSeats(businessSeats);
-                            flight.setFirstClassSeats(firstClassSeats);
+                        if (selectedFlight != null) {
+                            System.out.println("Select an attribute to update:");
+                            System.out.println("1. Flight Name");
+                            System.out.println("2. Source");
+                            System.out.println("3. Destination");
+                            System.out.println("4. Time");
+                            System.out.println("5. Status");
+                            System.out.println("6. Price");
+                            System.out.println("7. Normal Seats");
+                            System.out.println("8. Business Class Seats");
+                            System.out.println("9. First Class Seats");
+                            System.out.println("10. Luggage Weight Limit");
+                            System.out.println("0. Finish Updating");
 
-                            if (!luggageLimit.isEmpty()) {
-                                flight.setLuggageWeightLimit(luggageLimit);
+                            boolean updating = true;
+
+                            while (updating) {
+                                System.out.print("Enter the index of the attribute to update (0 to finish): ");
+                                String input = sc.nextLine().trim(); // Get the user input and remove leading/trailing spaces
+
+                                if (input.isEmpty()) {
+                                    System.out.println("Invalid input. Please enter a valid index.");
+                                    continue; // Restart the loop if input is empty
+                                }
+
+                                int choice;
+                                try {
+                                    choice = Integer.parseInt(input);
+                                } catch (NumberFormatException e) {
+                                    System.out.println("Invalid input. Please enter a valid index.");
+                                    continue; // Restart the loop if input is not a valid integer
+                                }
+
+                                switch (choice) {
+                                    case 0:
+                                        updating = false;
+                                        break;
+                                    case 1:
+                                        String newName = getInputField("Flight Name", sc);
+                                        if (!newName.isBlank()) {
+                                            selectedFlight.setName(newName);
+                                        } else {
+                                            System.out.println("Flight Name cannot be blank.");
+                                        }
+                                        break;
+                                    case 2:
+                                        String newSource = getInputField("Source", sc);
+                                        if (!newSource.isBlank()) {
+                                            selectedFlight.setSource(newSource);
+                                        } else {
+                                            System.out.println("Source cannot be blank.");
+                                        }
+                                        break;
+                                    case 3:
+                                        String newDestination = getInputField("Destination", sc);
+                                        if (!newDestination.isBlank()) {
+                                            if (!newDestination.equalsIgnoreCase(selectedFlight.getSource())) {
+                                                selectedFlight.setDestination(newDestination);
+                                            } else {
+                                                System.out.println("Destination cannot be the same as the source.");
+                                            }
+                                        } else {
+                                            System.out.println("Destination cannot be blank.");
+                                        }
+                                        break;
+                                    case 4:
+                                        String newTime = getInputField("New Time (HH:mm)", sc);
+                                        if (isValidTimeFormat(newTime)) {
+                                            selectedFlight.setTime(newTime);
+                                        } else {
+                                            System.out.println("Invalid time format. Please use HH:mm format.");
+                                        }
+                                        break;
+                                    case 5:
+                                        String newStatus = getInputField("Status", sc);
+                                        selectedFlight.setStatus(newStatus);
+                                        break;
+                                    case 6:
+                                        int newPrice = parseIntWithValidation("Price", sc);
+                                        selectedFlight.setPrice(newPrice);
+                                        break;
+                                    case 7:
+                                        int newNormalSeats = parseIntWithValidation("Normal Seats", sc);
+                                        selectedFlight.setNormalSeats(newNormalSeats);
+                                        break;
+                                    case 8:
+                                        int newBusinessSeats = parseIntWithValidation("Business Class Seats", sc);
+                                        selectedFlight.setBusinessSeats(newBusinessSeats);
+                                        break;
+                                    case 9:
+                                        int newFirstClassSeats = parseIntWithValidation("First Class Seats", sc);
+                                        selectedFlight.setFirstClassSeats(newFirstClassSeats);
+                                        break;
+                                    case 10:
+                                        String newLuggageLimit = getInputField("Luggage Weight Limit (optional, press Enter to skip)", sc);
+                                        selectedFlight.setLuggageWeightLimit(newLuggageLimit);
+                                        break;
+                                    default:
+                                        System.out.println("Invalid choice. Please enter a valid index.");
+                                        break;
+                                }
                             }
 
                             System.out.println("Flight Updated Successfully\n");
-                            return; // Exit the method when the flight is found and updated
+                        } else {
+                            System.out.println("Flight ID does not exist\n");
                         }
+                    } catch (InputMismatchException e) {
+                        System.out.println("Invalid input. Please enter valid data.\n");
+                        sc.nextLine(); // Consume the invalid input
                     }
+                }
+            }
+            // Check if the input time is in HH:mm format
+            private static boolean isValidTimeFormat(String time) {
+                return time.matches("^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$");
+            }
 
-                    // Flight not found, print error message
-                    System.out.println("Flight ID does not exist\n");
+            // Method to delete a flight.
+            public static void delete_flights(Scanner sc) {
+                if (flights.isEmpty()) {
+                    System.out.println("No Flights available.\n");
+                } else {
+                    try {
+                        String id = getFormattedFlightID("Flight ID", sc);
+
+                        boolean flightFound = false;
+                        Iterator<Flight> iterator = flights.iterator();
+                        while (iterator.hasNext()) {
+                            Flight flight = iterator.next();
+                            if (flight.getId().equalsIgnoreCase(id)) {
+                                iterator.remove();
+                                flightFound = true;
+                                System.out.println("Flight Deleted Successfully\n");
+                                break;
+                            }
+                        }
+
+                        if (!flightFound) {
+                            System.out.println("Flight ID does not exist\n");
+                        }
+                    } catch (InputMismatchException e) {
+                        System.out.println("Invalid input. Please enter a valid Flight ID.\n");
+                        sc.nextLine(); // Consume the invalid input
+                    }
+                }
+            }
+
+            // Method to add a new staff account.
+            public static void addStaffAccount(Scanner sc) {
+                try {
+                    String username = getInputField("Staff UserName", sc);
+                    
+                    // Check if a staff account with the same username already exists
+                    if (isUsernameDuplicate(username)) {
+                        System.out.println("Username is already in use. Please choose a different username.\n");
+                        return; // Exit the method without adding the account
+                    }
+                    
+                    String password = getInputField("Staff Password", sc);
+
+                    // Create a new StaffAccount object and add it to the list
+                    StaffAccount staffAccount = new StaffAccount(username, password);
+                    staffAccounts.add(staffAccount); // Add the new account to the list
+                    System.out.println("Staff Account Added Successfully\n");
                 } catch (InputMismatchException e) {
                     System.out.println("Invalid input. Please enter valid data.\n");
                     sc.nextLine(); // Consume the invalid input
                 }
             }
-        }
 
-        // Method to delete a flight.
-        public static void delete_flights(Scanner sc) {
-            if (flights.isEmpty()) {
-                System.out.println("No Flights available.\n");
-            } else {
-                try {
-                    System.out.print("\nEnter the Flight ID to delete: ");
-                    String id = sc.nextLine();
-
-                    boolean flightFound = false;
-                    Iterator<Flight> iterator = flights.iterator();
-                    while (iterator.hasNext()) {
-                        Flight flight = iterator.next();
-                        if (flight.getId().equalsIgnoreCase(id)) {
-                            iterator.remove();
-                            flightFound = true;
-                            System.out.println("Flight Deleted Successfully\n");
-                            break;
-                        }
+            // Helper method to check if a staff account with the same username exists
+            private static boolean isUsernameDuplicate(String username) {
+                for (StaffAccount staff : staffAccounts) {
+                    if (staff.getUsername().equalsIgnoreCase(username)) {
+                        return true; // Username is already in use
                     }
-
-                    if (!flightFound) {
-                        System.out.println("Flight ID does not exist\n");
-                    }
-                } catch (InputMismatchException e) {
-                    System.out.println("Invalid input. Please enter a valid Flight ID.\n");
-                    sc.nextLine(); // Consume the invalid input
                 }
+                return false; // Username is not a duplicate
             }
         }
-
-        // Method to add a new staff account.
-        public static void addStaffAccount(Scanner sc) {
-            try {
-                System.out.print("\nEnter the Staff Username: ");
-                String username = sc.nextLine();
-                System.out.print("Enter the Staff Password: ");
-                String password = sc.nextLine();
-
-                // Create a new StaffAccount object and add it to the list
-                StaffAccount staffAccount = new StaffAccount(username, password);
-                staffAccounts.add(staffAccount);
-
-                System.out.println("Staff Account Added Successfully\n");
-            } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter valid data.\n");
-                sc.nextLine(); // Consume the invalid input
-            }
-        }
-    }
 
         static class Customer extends Staff {
         private static ArrayList<Booking> bookings = new ArrayList<>();
@@ -922,16 +1165,15 @@ class Main {
 
         public static void customer_menu(Scanner sc) {
             int ch = 0;
-            while (ch != 6) {
+            while (ch != 5) {
                 try {
                     // Display customer menu options
                     System.out.println("\nCustomer Menu");
                     System.out.println("1 - Book Flights");
                     System.out.println("2 - Check-In");
-                    System.out.println("3 - Flight Details");
-                    System.out.println("4 - View Booking History");
-                    System.out.println("5 - Manage Reservations");
-                    System.out.println("6 - Exit\n");
+                    System.out.println("3 - View Booking History");
+                    System.out.println("4 - Manage Reservations");
+                    System.out.println("5 - Exit\n");
 
                     System.out.print("Enter your choice: ");
                     ch = sc.nextInt();
@@ -945,19 +1187,12 @@ class Main {
                             check_in(sc);
                             break;
                         case 3:
-                            System.out.print("\nEnter the Source: ");
-                            String source = sc.nextLine();
-                            System.out.print("Enter the Destination: ");
-                            String destination = sc.nextLine();
-                            flight_details(source, destination);
-                            break;
-                        case 4:
                             viewBookingHistory();
                             break;
-                        case 5:
+                        case 4:
                             manageReservations(sc);
                             break;
-                        case 6:
+                        case 5:
                             System.out.println("Customer Logged Out\n");
                             break;
                         default:
@@ -976,29 +1211,34 @@ class Main {
                 System.out.println("No Bookings available.\n");
             } else {
                 try {
-                    // Get flight details for check-in
-                    System.out.print("\nEnter the Flight ID: ");
-                    String id = sc.nextLine();
-                    System.out.print("Enter the Flight Name: ");
-                    String name = sc.nextLine();
-                    System.out.print("Enter the Source: ");
-                    String source = sc.nextLine();
-                    System.out.print("Enter the Destination: ");
-                    String destination = sc.nextLine();
-
-                    for (Flight flight : flights) {
-                        if (flight.getId().equalsIgnoreCase(id)) {
-                            if (flight.getName().equalsIgnoreCase(name) && flight.getSource().equalsIgnoreCase(source)
-                                    && flight.getDestination().equalsIgnoreCase(destination)) {
+                    // Get booking details for check-in
+                    String customerName = getInputField("Customer Name", sc);
+                    String source = getInputField("Source", sc);
+                    String destination = getInputField("Destination", sc);
+                    String flightId = getFormattedFlightID("Flight ID", sc);
+                    String flightTime = getInputField("Flight Time (HH:mm)", sc);
+        
+                    for (Booking booking : bookings) {
+                        if (booking.getCustomerName().equalsIgnoreCase(customerName) &&
+                            booking.getFlight().getSource().equalsIgnoreCase(source) &&
+                            booking.getFlight().getDestination().equalsIgnoreCase(destination) &&
+                            booking.getFlight().getId().equalsIgnoreCase(flightId) &&
+                            booking.getFlight().getTime().equals(flightTime)) {
+        
+                            Flight flight = getFlightById(flightId); // Get the corresponding flight
+        
+                            if (flight != null) {
                                 if (flight.getStatus().equalsIgnoreCase("Operational")) {
                                     // Check luggage weight
-                                    System.out.print("Enter the Customer's Luggage Weight (in kg): ");
-                                    double luggageWeight = sc.nextDouble();
-
+                                    String luggageWeight = getInputField("Customer's Luggage Weight (in kg)", sc);
+                                    if (luggageWeight.isBlank()) {
+                                        luggageWeight = "0";
+                                    }
+        
                                     // Get the luggage limit of the specific plane
                                     double luggageLimit = Double.parseDouble(flight.getLuggageWeightLimit());
-
-                                    if (luggageWeight <= luggageLimit) {
+        
+                                    if (Double.parseDouble(luggageWeight) <= luggageLimit) {
                                         System.out.println("Check-In Successful\n");
                                     } else {
                                         System.out.println("Luggage weight exceeds the limit for this flight!!!\nExcess Luggage Fee will be charged.\n");
@@ -1020,6 +1260,16 @@ class Main {
                 }
             }
         }
+        
+        // Helper method to get a flight by its ID
+        private static Flight getFlightById(String flightId) {
+            for (Flight flight : flights) {
+                if (flight.getId().equalsIgnoreCase(flightId)) {
+                    return flight;
+                }
+            }
+            return null; // Flight not found
+        }        
 
         public static void flight_details(String source, String destination) {
             boolean flightsFound = false; // Flag to track if any flights are found
@@ -1046,60 +1296,100 @@ class Main {
         public static void book(Scanner sc) {
             int tot_price = 0;
             boolean flightsFound = false; // Flag to track if any flights are found
-
+        
             if (flights.isEmpty()) {
                 System.out.println("No Flights available.\n");
             } else {
                 try {
                     // Get booking details
-                    System.out.print("\nEnter the Customer Name: ");
-                    String name = sc.nextLine();
-                    System.out.print("Enter the Flight Name: ");
-                    String flightName = sc.nextLine();
-                    System.out.print("Enter the Source: ");
-                    String source = sc.nextLine();
-                    System.out.print("Enter the Destination: ");
-                    String destination = sc.nextLine();
-                    System.out.print("Enter the Time: ");
-                    String time = sc.nextLine();
-                    System.out.print("Enter the Seat Category (Normal or Business or First Class): ");
-                    String seatCategory = sc.nextLine();
-                    System.out.print("Enter the Check-In Option (Normal or VIP check-in or Private terminal or lounge or Charter and private jet services): ");
-                    String checkInOption = sc.nextLine();
-
+                    String source = getInputField("Source", sc);
+                    String destination = getInputField("Destination", sc);
+                    if (source.equalsIgnoreCase(destination)) {
+                        System.out.println("Source and Destination cannot be the same\n");
+                        getInputField(destination, sc);
+                    }
+        
+                    // Display available flights from source to destination
+                    int flightIndex = 1;
+                    System.out.println("Available Flights from " + source + " to " + destination + ":");
+                    Map<Integer, Flight> flightMap = new HashMap<>();
+                    for (Flight flight : flights) {
+                        if (flight.getSource().equalsIgnoreCase(source) && flight.getDestination().equalsIgnoreCase(destination)) {
+                            flightMap.put(flightIndex, flight);
+                            System.out.println(flightIndex + ". " + flight.getName() + " - " + flight.getTime());
+                            flightIndex++;
+                        }
+                    }
+        
+                    if (flightIndex == 1) {
+                        System.out.println("No matching flights found.\n");
+                        return; // Exit the method if no flights are found
+                    }
+        
+                    // Ask the user to select a flight
+                    System.out.print("Enter the number of the flight you want to book: ");
+                    String selectedFlightIndex = sc.nextLine();
+                    if (selectedFlightIndex.isBlank())
+                    {
+                        System.out.println("Flight number cannot be blank\n");
+                        return;
+                    }
+        
+                    Flight selectedFlight = flightMap.get(Integer.parseInt(selectedFlightIndex));
+        
+                    String name = getInputField("Customer Name", sc);
+                
+                    System.out.println("Seats Available");
+                    System.out.println("1. Normal Class Seats: " + selectedFlight.getNormalSeats());
+                    System.out.println("2. Business Class Seats: " + selectedFlight.getBusinessSeats());
+                    System.out.println("3. First Class Seats: " + selectedFlight.getFirstClassSeats());
+                    String seatCategoryIndex = getInputField("Seat Category (1 for Normal, 2 for Business, 3 for First Class)", sc);
+                    System.out.println("Check-In Options");
+                    System.out.println("1. Online Check-In");
+                    System.out.println("2. Airport Check-In");
+                    System.out.println("3. Private Terminal or Lounge");
+                    System.out.println("4. Charter and Private Jet Services");
+                    String checkInOptionIndex = getInputField("Enter the Check-In Option (1 for Online, 2 for Airport, 3 for Private Terminal, 4 for Charter)", sc); 
+                            
+                    // Define seat category and check-in option maps
+                    Map<Integer, String> seatCategoryMap = Map.of(1, "normal class", 2, "business class", 3, "first class");
+                    Map<Integer, String> checkInOptionMap = Map.of(1, "online check-in", 2, "airport check-in", 3, "private terminal or lounge", 4, "charter and private jet services");
+        
+                    // Get seat category and check-in option based on user input
+                    String seatCategory = seatCategoryMap.getOrDefault(Integer.parseInt(seatCategoryIndex), "");
+                    String checkInOption = checkInOptionMap.getOrDefault(Integer.parseInt(checkInOptionIndex), "");
+        
+                    // Check if the selected options are valid
+                    if (seatCategory.isEmpty() || checkInOption.isEmpty()) {
+                        System.out.println("Invalid seat category or check-in option. Please try again.\n");
+                        return;
+                    }
+        
                     // Define seat category prices
                     Map<String, Integer> seatCategoryPrices = new HashMap<>();
                     seatCategoryPrices.put("normal class", 1500);
                     seatCategoryPrices.put("business class", 9000);
                     seatCategoryPrices.put("first class", 19000);
-
+        
                     // Define check-in option prices
                     Map<String, Integer> checkInOptionPrices = new HashMap<>();
-                    checkInOptionPrices.put("normal", 0);
-                    checkInOptionPrices.put("vip check-in", 5000);
+                    checkInOptionPrices.put("airport check-in", 0);
+                    checkInOptionPrices.put("online check-in", 5000);
                     checkInOptionPrices.put("private terminal or lounge", 10000);
                     checkInOptionPrices.put("charter and private jet services", 15000);
-
-                    Flight selectedFlight = null;
-                    for (Flight flight : flights) {
-                        if (flight.getName().equalsIgnoreCase(flightName) && flight.getTime().equalsIgnoreCase(time) && flight.getSource().equalsIgnoreCase(source) && flight.getDestination().equalsIgnoreCase(destination)) {
-                            selectedFlight = flight;
-                            flightsFound = true; // Set the flag to true if flights are found
-                            break;
-                        }
-                    }
-
+        
                     if (selectedFlight != null) {
                         if (currentCustomer != null) {
                             tot_price += selectedFlight.getPrice();
-
+        
                             // Calculate prices based on seat category and check-in option
                             int seatCategoryPrice = seatCategoryPrices.getOrDefault(seatCategory.toLowerCase(), 0);
                             int checkInOptionPrice = checkInOptionPrices.getOrDefault(checkInOption.toLowerCase(), 0);
-
+        
                             tot_price += seatCategoryPrice;
                             tot_price += checkInOptionPrice;
-
+        
+                            // Handle seat bookings based on selected category
                             if (seatCategory.equalsIgnoreCase("normal class") && selectedFlight.getNormalSeats() > 0) {
                                 Booking booking = new Booking(currentCustomer.getId(), name, selectedFlight, seatCategory, checkInOption, tot_price);
                                 // Add the booking to the customer's bookings
@@ -1112,7 +1402,7 @@ class Main {
                                 Customer.addBooking(booking);
                                 selectedFlight.setBusinessSeats(selectedFlight.getBusinessSeats() - 1);
                                 System.out.println("Booking Successful\n");
-                            } else if (selectedFlight.getFirstClassSeats() > 0) {
+                            } else if (seatCategory.equalsIgnoreCase("first class") && selectedFlight.getFirstClassSeats() > 0) {
                                 Booking booking = new Booking(currentCustomer.getId(), name, selectedFlight, seatCategory, checkInOption, tot_price);
                                 // Add the booking to the customer's bookings
                                 Customer.addBooking(booking);
@@ -1121,7 +1411,7 @@ class Main {
                             } else {
                                 System.out.println("No available seats in the selected category.\n");
                             }
-
+        
                             if (flightsFound) {
                                 System.out.println("Booking Details");
                                 System.out.println("Passenger Name: " + name);
@@ -1138,8 +1428,6 @@ class Main {
                         } else {
                             System.out.println("Customer not found.\n");
                         }
-                    } else {
-                        System.out.println("No matching flights found.\n");
                     }
                 } catch (InputMismatchException e) {
                     System.out.println("Invalid input. Please enter valid data.\n");
@@ -1147,17 +1435,24 @@ class Main {
                 }
             }
         }
+        
 
         public static void viewBookingHistory() {
-            System.out.println("\nBooking History for Passenger: " + currentCustomer.getId());
-            System.out.println("Passenger Name | Flight ID | Flight Name       | Time | Source | Destination | Seat Category | Check-In Option");
+            if (bookings.isEmpty()) {
+                System.out.println("No Bookings available.\n");
+            } 
+            else
+            {
+                System.out.println("\nBooking History for Passenger: " + currentCustomer.getId());
+                System.out.println("Passenger Name | Flight ID | Flight Name       | Time | Source | Destination | Seat Category | Check-In Option");
 
-            for (Booking booking : bookings) {
-                if (booking.getCustomerId().equals(currentCustomer.getId())) {
-                    System.out.printf("%-14s | %-9s | %-16s | %-8s | %-6s | %-12s | %-13s | %-15s%n", booking.getCustomerName(), booking.getFlight().getId(), booking.getFlight().getName(), booking.getFlight().getTime(), booking.getFlight().getSource(), booking.getFlight().getDestination(), booking.getSeatCategory(), booking.getCheckInOption());
+                for (Booking booking : bookings) {
+                    if (booking.getCustomerId().equals(currentCustomer.getId())) {
+                        System.out.printf("%-14s | %-9s | %-16s | %-8s | %-6s | %-12s | %-13s | %-15s%n", booking.getCustomerName(), booking.getFlight().getId(), booking.getFlight().getName(), booking.getFlight().getTime(), booking.getFlight().getSource(), booking.getFlight().getDestination(), booking.getSeatCategory(), booking.getCheckInOption());
+                    }
                 }
-            }
-            System.out.println();
+                System.out.println();
+                }
         }
 
         public static void manageReservations(Scanner sc) {
@@ -1166,11 +1461,9 @@ class Main {
             } else {
                 try {
                     // Get flight ID and customer name for managing reservations
-                    System.out.print("\nEnter the Flight ID to manage reservation: ");
-                    String id = sc.nextLine();
-                    System.out.print("Enter the Customer Name: ");
-                    String customerName = sc.nextLine();
-
+                    String id = getFormattedFlightID("Flight ID to manage reservation", sc);
+                    String customerName = getInputField("Customer Name", sc);
+                    
                     for (Booking booking : bookings) {
                         if (booking.getFlight().getId().equalsIgnoreCase(id) && booking.getCustomerName().equalsIgnoreCase(customerName)) {
                             // Display reservation management options
@@ -1178,10 +1471,14 @@ class Main {
                             System.out.println("2 - Update Seat Category");
                             System.out.println("3 - Exit");
                             System.out.print("Enter your choice: ");
-                            int choice = sc.nextInt();
-                            sc.nextLine(); // Consume newline
+                            String choice = sc.nextLine();
+                            if (choice.isBlank())
+                            {
+                                System.out.println("Choice cannot be blank\n");
+                                return;
+                            } 
 
-                            switch (choice) {
+                            switch (Integer.parseInt(choice)) {
                                 case 1:
                                     cancelReservation(booking);
                                     break;
@@ -1256,373 +1553,5 @@ class Main {
                 }
             }
         }
-    }
-}
-
-// Flight class represents flight information
-class Flight implements Serializable {
-    // Fields to store flight information
-    private String id;
-    private String name;
-    private String source;
-    private String destination;
-    private String time;
-    private String status;
-    private int price;
-    private int normalSeats;
-    private int businessSeats;
-    private int firstClassSeats;
-    private String weightLimit;
-
-    // Constructor to initialize flight information
-    public Flight(String id, String name, String source, String destination, String time, String status, int price, int normalSeats, int businessSeats, int firstClassSeats, String weightLimit) {
-        this.id = id;
-        this.name = name;
-        this.source = source;
-        this.destination = destination;
-        this.time = time;
-        this.status = status;
-        this.price = price;
-        this.normalSeats = normalSeats;
-        this.businessSeats = businessSeats;
-        this.firstClassSeats = firstClassSeats;
-        this.weightLimit = weightLimit;
-    }
-
-    // Getters and setters for all fields
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getSource() {
-        return source;
-    }
-
-    public void setSource(String source) {
-        this.source = source;
-    }
-
-    public String getDestination() {
-        return destination;
-    }
-
-    public void setDestination(String destination) {
-        this.destination = destination;
-    }
-
-    public String getTime() {
-        return time;
-    }
-
-    public void setTime(String time) {
-        this.time = time;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public int getPrice() {
-        return price;
-    }
-
-    public void setPrice(int price) {
-        this.price = price;
-    }
-
-    public int getNormalSeats() {
-        return normalSeats;
-    }
-
-    public void setNormalSeats(int normalSeats) {
-        this.normalSeats = normalSeats;
-    }
-
-    public int getBusinessSeats() {
-        return businessSeats;
-    }
-
-    public void setBusinessSeats(int businessSeats) {
-        this.businessSeats = businessSeats;
-    }
-
-    public int getFirstClassSeats() {
-        return firstClassSeats;
-    }
-
-    public void setFirstClassSeats(int firstClassSeats) {
-        this.firstClassSeats = firstClassSeats;
-    }
-
-    public String getLuggageWeightLimit() {
-        return weightLimit;
-    }
-
-    public void setLuggageWeightLimit(String weightLimit) {
-        this.weightLimit = weightLimit;
-    }
-
-    // Check if there are available seats in a given seat category
-    public boolean hasAvailableSeat(String seatCategory) {
-        switch (seatCategory.toLowerCase()) {
-            case "normal class":
-                return normalSeats > 0;
-            case "business class":
-                return businessSeats > 0;
-            case "first class":
-                return firstClassSeats > 0;
-            default:
-                return false;
-        }
-    }
-
-    // Increment the seat count for a given seat category
-    public void incrementSeat(String seatCategory) {
-        switch (seatCategory.toLowerCase()) {
-            case "normal class":
-                normalSeats++;
-                break;
-            case "business class":
-                businessSeats++;
-                break;
-            case "first class":
-                firstClassSeats++;
-                break;
-        }
-    }
-
-    // Decrement the seat count for a given seat category
-    public void decrementSeat(String seatCategory) {
-        switch (seatCategory.toLowerCase()) {
-            case "normal class":
-                normalSeats--;
-                break;
-            case "business class":
-                businessSeats--;
-                break;
-            case "first class":
-                firstClassSeats--;
-                break;
-        }
-    }
-}
-
-// Booking class represents flight bookings made by customers
-class Booking implements Serializable {
-    private String customerId;
-    private String customerName;
-    private Flight flight;
-    private String seatCategory;
-    private String checkInOption;
-    private int price;
-
-    // Constructor to initialize booking information
-    public Booking(String id, String name, Flight flight, String seatCategory, String checkInOption, int price) {
-        this.customerId = id;
-        this.customerName = name;
-        this.flight = flight;
-        this.seatCategory = seatCategory;
-        this.checkInOption = checkInOption;
-        this.price = price;
-    }
-
-    // Getter and setter for customerId
-    public String getCustomerId() {
-        return customerId;
-    }
-
-    // Getter for customerName
-    public String getCustomerName() {
-        return customerName;
-    }
-
-    // Setter for customerName
-    public void setCustomerName(String customerName) {
-        this.customerName = customerName;
-    }
-
-    // Getter for flight
-    public Flight getFlight() {
-        return flight;
-    }
-
-    // Setter for flight
-    public void setFlight(Flight flight) {
-        this.flight = flight;
-    }
-
-    // Getter for seatCategory
-    public String getSeatCategory() {
-        return seatCategory;
-    }
-
-    // Setter for seatCategory
-    public void setSeatCategory(String seatCategory) {
-        this.seatCategory = seatCategory;
-    }
-
-    // Getter for checkInOption
-    public String getCheckInOption() {
-        return checkInOption;
-    }
-
-    // Setter for checkInOption
-    public void setCheckInOption(String checkInOption) {
-        this.checkInOption = checkInOption;
-    }
-
-    // Getter for price
-    public int getPrice() {
-        return price;
-    }
-
-    // Setter for price
-    public void setPrice(int price) {
-        this.price = price;
-    }
-}
-
-// StaffAccount class represents staff accounts used for authentication
-class StaffAccount implements Serializable {
-    private static final AtomicInteger staffIdGenerator = new AtomicInteger(1);
-    private String id;
-    private String username;
-    private String password;
-
-    // Constructor to initialize staff account information
-    public StaffAccount(String username, String password) {
-        this.id = generateId(staffIdGenerator);
-        this.username = username;
-        this.password = password;
-    }
-
-    // Getter for id
-    public String getId() {
-        return id;
-    }
-
-    // Getter for username
-    public String getUsername() {
-        return username;
-    }
-
-    // Setter for username
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    // Getter for password
-    public String getPassword() {
-        return password;
-    }
-
-    // Setter for password
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    // Generates a unique staff ID based on an atomic counter
-    private static String generateId(AtomicInteger generator) {
-        int id = generator.getAndIncrement();
-        return String.format("stf%04d", id); // Adjust the format to have a fixed length of 7 characters
-    }
-}
-
-// CustomerAccount class represents customer accounts used for authentication
-class CustomerAccount implements Serializable {
-    private static final AtomicInteger customerIdGenerator = new AtomicInteger(1);
-    private String id;
-    private String username;
-    private String password;
-
-    // Constructor to initialize customer account information
-    public CustomerAccount(String username, String password) {
-        this.id = generateId(customerIdGenerator);
-        this.username = username;
-        this.password = password;
-    }
-
-    // Getter for id
-    public String getId() {
-        return id;
-    }
-
-    // Getter for username
-    public String getUsername() {
-        return username;
-    }
-
-    // Setter for username
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    // Getter for password
-    public String getPassword() {
-        return password;
-    }
-
-    // Setter for password
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    // Generates a unique customer ID based on an atomic counter
-    private static String generateId(AtomicInteger generator) {
-        int id = generator.getAndIncrement();
-        return String.format("cus%04d", id); // Adjust the format to have a fixed length of 7 characters
-    }
-}
-
-// AdminAccount class represents admin accounts used for authentication
-class AdminAccount implements Serializable {
-    private static final AtomicInteger adminIdGenerator = new AtomicInteger(1);
-    private String id;
-    private String username;
-    private String password;
-
-    // Constructor to initialize admin account information
-    public AdminAccount(String username, String password) {
-        this.id = generateId(adminIdGenerator);
-        this.username = username;
-        this.password = password;
-    }
-
-    // Getter for id
-    public String getId() {
-        return id;
-    }
-
-    // Getter for username
-    public String getUsername() {
-        return username;
-    }
-
-    // Getter for password
-    public String getPassword() {
-        return password;
-    }
-
-    // Generates a unique admin ID based on an atomic counter
-    private static String generateId(AtomicInteger generator) {
-        int id = generator.getAndIncrement();
-        return String.format("adm%04d", id); // Adjust the format to have a fixed length of 7 characters
     }
 }
