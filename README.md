@@ -38,9 +38,9 @@ Special thanks to the open-source community for valuable contributions and inspi
 Happy coding!
 
 ## TODO ⏰
-- Display Staff Information
-- Display Available Flight in Staff Menu
-- Display Available Flights from source to destination when booking
-- Display when no booking found
+- ~~Display Staff Information~~
+- ~~Display Available Flight in Staff Menu~~
+- ~~Display Available Flights from source to destination when booking~~
+- ~~Display when no booking found~~
 - Debugging
 - Add booking id to booking
