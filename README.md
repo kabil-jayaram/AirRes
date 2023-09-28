@@ -37,7 +37,7 @@ Special thanks to the open-source community for valuable contributions and inspi
 
 Happy coding!
 
-## TODO ⏰
+## Todo ⏰
 - ~~Display Staff Information~~
 - ~~Display Available Flight in Staff Menu~~
 - ~~Display Available Flights from source to destination when booking~~
