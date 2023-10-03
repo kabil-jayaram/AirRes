@@ -2,6 +2,8 @@ import java.io.*;
 import java.util.*;
 
 class CustomerAccount implements Serializable {
+    // Static field to store deleted customer account IDs
+    private static List<String> deletedIds = new ArrayList<>();
     Main main = new Main();
     private String id;
     private String username;
@@ -40,21 +42,42 @@ class CustomerAccount implements Serializable {
     }
 
     private String generateUniqueId() {
-        int nextId = getNextCustomerId();
+        int nextId;
+
+        if (!deletedIds.isEmpty()) {
+            // Reuse a deleted ID if available
+            nextId = Integer.parseInt(deletedIds.remove(0).substring(3));
+        } else {
+            // Generate a new ID if the deleted IDs list is empty
+            nextId = getNextCustomerId();
+        }
+
         String customerId = String.format("cus%04d", nextId);
         return customerId;
     }
 
     private int getNextCustomerId() {
         int nextId = 1;
-
+    
         if (!main.customerAccounts.isEmpty()) {
-            CustomerAccount lastCustomer = main.customerAccounts.get(main.customerAccounts.size() - 1);
-            String lastId = lastCustomer.getId().substring(3);
-            nextId = Integer.parseInt(lastId) + 1;
+            // Create a set to store all customer IDs, including deleted ones
+            Set<String> allCustomerIds = new HashSet<>();
+    
+            for (CustomerAccount customer : main.customerAccounts) {
+                allCustomerIds.add(customer.getId());
+            }
+    
+            // Find the first available ID by incrementing from 1
+            while (allCustomerIds.contains(String.format("cus%04d", nextId))) {
+                nextId++;
+            }
         }
-
+    
         return nextId;
+    }
+
+    public static void addDeletedId(String id) {
+        deletedIds.add(id);
     }
 
     public static List<AccountIdData> getCustomerIds() {

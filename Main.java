@@ -200,26 +200,33 @@ class Main {
         }
     }
 
-    // Function to delete a Customer Account
+    // Method to delete a Customer Account
     public static void deleteCustomer(Scanner sc) {
         if (customerAccounts.isEmpty()) {
             System.out.println("No Customer available.\n");
         } else {
             try {
                 String username = getInputField("Customer Username", sc);
-                String password = getInputField("Customer Password", sc);
-                for (CustomerAccount customer : customerAccounts) {
-                    flag = 0;
-                    if (customer.getUsername().equalsIgnoreCase(username) && customer.getPassword().equals(password)) {
-                        flag = 1;
-                        customerAccounts.remove(customer);
-                        System.out.println("Customer Account Deleted\n");
+
+                boolean customerAccountFound = false;
+                Iterator<CustomerAccount> iterator = customerAccounts.iterator();
+                while (iterator.hasNext()) {
+                    CustomerAccount customerAccount = iterator.next();
+                    if (customerAccount.getUsername().equalsIgnoreCase(username)) {
+                        // Add the deleted ID to the deletedIds list
+                        CustomerAccount.addDeletedId(customerAccount.getId());
+                        iterator.remove();
+                        customerAccountFound = true;
+                        System.out.println("Customer Account Deleted Successfully\n");
+                        break;
                     }
                 }
-                if (flag == 0)
-                    System.out.println("Invalid Username or Password\n");
+
+                if (!customerAccountFound) {
+                    System.out.println("Customer Username does not exist\n");
+                }
             } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.\n");
+                System.out.println("Invalid input. Please enter a valid Customer Username.\n");
                 sc.nextLine(); // Consume the invalid input
             }
         }
@@ -356,7 +363,7 @@ class Main {
                 return; // Exit the method without signing up the customer
             }
             
-            String password = getInputField("Admin Password", sc);
+            String password = getInputField("Customer Password", sc);
 
             // Create a new CustomerAccount object and add it to the list
             CustomerAccount customer = new CustomerAccount(username, password);
@@ -473,7 +480,6 @@ class Main {
                 String line = scanner.nextLine();
                 String[] parts = line.split(" ");
                 if (parts.length == 3) {
-                    String id = parts[0];
                     String username = parts[1];
                     String password = parts[2];
                     AdminAccount admin = new AdminAccount(username, password);
@@ -492,7 +498,6 @@ class Main {
                 String line = scanner.nextLine();
                 String[] parts = line.split(" ");
                 if (parts.length == 3) {
-                    String id = parts[0];
                     String username = parts[1];
                     String password = parts[2];
                     CustomerAccount customer = new CustomerAccount(username, password);
@@ -511,7 +516,6 @@ class Main {
                 String line = scanner.nextLine();
                 String[] parts = line.split(" ");
                 if (parts.length == 3) {
-                    String id = parts[0];
                     String username = parts[1];
                     String password = parts[2];
                     StaffAccount staff = new StaffAccount(username, password);
@@ -856,19 +860,21 @@ class Main {
                 }
             }
 
-            // Method to delete a staff account.
+            // Method to delete a staff account
             public static void deleteStaffAccount(Scanner sc) {
                 if (staffAccounts.isEmpty()) {
                     System.out.println("No Staff available.\n");
                 } else {
                     try {
-                        String username = getInputField("Staff Username", sc);                        
+                        String username = getInputField("Staff Username", sc);
 
                         boolean staffAccountFound = false;
                         Iterator<StaffAccount> iterator = staffAccounts.iterator();
                         while (iterator.hasNext()) {
                             StaffAccount staffAccount = iterator.next();
                             if (staffAccount.getUsername().equalsIgnoreCase(username)) {
+                                // Add the deleted ID to the deletedIds list
+                                StaffAccount.addDeletedId(staffAccount.getId());
                                 iterator.remove();
                                 staffAccountFound = true;
                                 System.out.println("Staff Account Deleted Successfully\n");
@@ -885,7 +891,7 @@ class Main {
                     }
                 }
             }
-
+            
             // Method to update a staff account's password.
             public static void updateStaffAccount(Scanner sc) {
                 if (staffAccounts.isEmpty()) {
@@ -1116,17 +1122,17 @@ class Main {
                 }
             }
 
-            // Method to add a new staff account.
+            // Method to add a new staff account
             public static void addStaffAccount(Scanner sc) {
                 try {
                     String username = getInputField("Staff UserName", sc);
-                    
+
                     // Check if a staff account with the same username already exists
                     if (isUsernameDuplicate(username)) {
                         System.out.println("Username is already in use. Please choose a different username.\n");
                         return; // Exit the method without adding the account
                     }
-                    
+
                     String password = getInputField("Staff Password", sc);
 
                     // Create a new StaffAccount object and add it to the list
