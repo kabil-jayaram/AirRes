@@ -43,4 +43,8 @@ Happy coding!
 - ~~Display Available Flights from source to destination when booking~~
 - ~~Display when no booking found~~
 - ~~Add booking id to booking~~
-- Add the ability to cancel any operations at anytime anywhere
+- Add the ability to cancel any operations at anytime anywhere using -1
+- Add the ability to downgrade the seat class
+- There is a exception causing code somewhere so 🥲
+- Error in Check-in in Customer Class
+- Error in Passenger Details in Staff Class
