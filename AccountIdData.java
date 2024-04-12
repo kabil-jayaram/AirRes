@@ -1,8 +1,8 @@
-import java.io.*;
+import java.io.Serializable;
 
-class AccountIdData implements Serializable {
-    private String id;
-    private AccountType type;
+public final class AccountIdData implements Serializable {
+    private final String id;
+    private final AccountType type;
 
     public AccountIdData(String id, AccountType type) {
         this.id = id;

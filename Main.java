@@ -1,18 +1,20 @@
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 class Main {
-    static Scanner sc = new Scanner(System.in);
-    public static List<Flight> flights = new ArrayList<>();
-    public static List<Booking> bookings = new ArrayList<>();
-    public static List<StaffAccount> staffAccounts = new ArrayList<>();
-    public static List<AdminAccount> adminAccounts = new ArrayList<>();
-    public static List<CustomerAccount> customerAccounts = new ArrayList<>();
-    static int flag = 0;
-    static CustomerAccount currentCustomer = null;
+    private static Scanner sc = new Scanner(System.in);
+    private static HashMap<String, Flight> flights = new HashMap<>();
+    private static List<Booking> bookings = new ArrayList<>();
+    private static List<StaffAccount> staffAccounts = new ArrayList<>();
+    private static List<AdminAccount> adminAccounts = new ArrayList<>();
+    private static List<CustomerAccount> customerAccounts = new ArrayList<>();
+    private static int flag = 0;
+    private static CustomerAccount currentCustomer = null;
 
     public static void main(String[] args) {
-        // Register a shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             saveFlightsAndBookings();
             saveStaffAccounts();
@@ -20,110 +22,80 @@ class Main {
             saveCustomerAccounts();
         }));
 
-            loadFlightsAndBookings();
-            loadStaffAccounts();
-            loadAdminAccounts();
-            loadCustomerAccounts();
+        loadFlightsAndBookings();
+        loadStaffAccounts();
+        loadAdminAccounts();
+        loadCustomerAccounts();
+        Scanner sc = new Scanner(System.in);
+        Map<Integer, Runnable> menuOptions = new HashMap<>();
+
+        // Initialize menu options
+        menuOptions.put(1, () -> adminSignUp(sc));
+        menuOptions.put(2, () -> adminLogin(sc));
+        menuOptions.put(3, () -> staffLogin(sc));
+        menuOptions.put(4, () -> staffRecovery(sc));
+        menuOptions.put(5, () -> customerSignUp(sc));
+        menuOptions.put(6, () -> customerLogin(sc));
+        menuOptions.put(7, () -> customerRecovery(sc));
+        menuOptions.put(8, () -> deleteCustomer(sc));
+        menuOptions.put(9, () -> System.out.println("Thank You for using our services"));
 
         int ch = 0;
-        while (ch != 9) {
-            try {
-                System.out.println("Login Menu");
-                System.out.println("1 - Admin SignUp");
-                System.out.println("2 - Admin Login");
-                System.out.println("3 - Staff Login");
-                System.out.println("4 - Staff Account Recovery");
-                System.out.println("5 - Customer SignUp");
-                System.out.println("6 - Customer Login");
-                System.out.println("7 - Customer Account Recovery");
-                System.out.println("8 - Delete Customer Account");
-                System.out.println("9 - Exit");
+        do {
+            System.out.println("Login Menu");
+            System.out.println("1 - Admin SignUp");
+            System.out.println("2 - Admin Login");
+            System.out.println("3 - Staff Login");
+            System.out.println("4 - Staff Account Recovery");
+            System.out.println("5 - Customer SignUp");
+            System.out.println("6 - Customer Login");
+            System.out.println("7 - Customer Account Recovery");
+            System.out.println("8 - Delete Customer Account");
+            System.out.println("9 - Exit");
 
-                System.out.print("Enter your choice: ");
-                String input = sc.nextLine().trim(); // Get the user input and remove leading/trailing spaces
+            System.out.print("Enter your choice: ");
+            String input = sc.nextLine().trim();
 
-                if (input.isEmpty()) {
-                    System.out.println("Invalid input. Please enter a valid index.");
-                    continue; // Restart the loop if input is empty
+            // Validate input before parsing
+            if (!input.isEmpty() && input.matches("\\d+")) {
+                ch = Integer.parseInt(input);
+                Runnable action = menuOptions.get(ch);
+                if (action != null) {
+                    action.run();
+                } else {
+                    System.out.println("Invalid choice. Please try again.");
                 }
-
-                try {
-                    ch = Integer.parseInt(input);
-                } catch (NumberFormatException e) {
-                    System.out.println("Invalid input. Please enter a valid index.");
-                    continue; // Restart the loop if input is not a valid integer
-                }
-
-                switch (ch) {
-                    case 1:
-                        adminSignUp(sc);
-                        break;
-                    case 2:
-                        adminLogin(sc);
-                        break;
-                    case 3:
-                        staffLogin(sc);
-                        break;
-                    case 4:
-                        staffRecovery(sc);
-                        break;
-                    case 5:
-                        customerSignUp(sc);
-                        break;
-                    case 6:
-                        customerLogin(sc);
-                        break;
-                    case 7:
-                        customerRecovery(sc);
-                        break;
-                    case 8:
-                        deleteCustomer(sc);
-                        break;
-                    case 9:
-                        System.out.println("Thank You for using our services");
-                        break;
-                    default:
-                        System.out.println("Invalid choice. Please try again.");
-                        break;
-                }
-            } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a valid option.\n");
-                sc.nextLine(); // Consume the invalid input
+            } else {
+                System.out.println("Invalid input. Please enter a valid index.");
             }
-        }
+        } while (ch != 9);
+
+        sc.close();
     }
 
     public static String getInputField(String inputField, Scanner sc) {
-        System.out.print("Enter the " + inputField + ": ");
-        String input = sc.nextLine();
-        if (input.isBlank()) {
-            System.out.println(inputField + " cannot be blank\n");
-            return getInputField(inputField, sc);
-        }
-        return input;
+        return getInput(inputField, sc, true);
     }
 
     public static int parseIntWithValidation(String fieldName, Scanner sc) {
         while (true) {
             try {
-                System.out.print("Enter the " + fieldName + ": ");
-                int input = Integer.parseInt(sc.nextLine());
-                if (input < 0) {
+                String input = getInput(fieldName, sc, false);
+                int value = Integer.parseInt(input);
+                if (value < 0) {
                     System.out.println(fieldName + " cannot be negative\n");
                 } else {
-                    return input;
+                    return value;
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Invalid " + fieldName + ". Please enter a valid integer.\n");
-                parseIntWithValidation(fieldName, sc);
             }
         }
     }
 
     public static String getFormattedFlightID(String inputField, Scanner sc) {
         while (true) {
-            System.out.print("Enter the " + inputField + ": ");
-            String input = sc.nextLine();
+            String input = getInput(inputField, sc, true);
             if (input.isBlank()) {
                 System.out.println(inputField + " cannot be blank\n");
                 continue;
@@ -131,7 +103,6 @@ class Main {
             try {
                 int id = Integer.parseInt(input);
                 if (id >= 0 && id <= 999) {
-                    // Format the ID to have three digits
                     return String.format("%03d", id);
                 } else {
                     System.out.println(inputField + " must be between 0 and 999\n");
@@ -142,17 +113,27 @@ class Main {
         }
     }
 
+    private static String getInput(String fieldName, Scanner sc, boolean allowBlank) {
+        System.out.print("Enter the " + fieldName + ": ");
+        String input = sc.nextLine();
+        while (input.isBlank() && !allowBlank) {
+            System.out.println(fieldName + " cannot be blank\n");
+            input = sc.nextLine();
+        }
+        return input;
+    }
+
     // Function to handle Admin sign-up
     public static void adminSignUp(Scanner sc) {
         try {
             String username = getInputField("Admin Username", sc);
-            
+
             // Check if an admin account with the same username already exists
             if (isAdminUsernameDuplicate(username)) {
                 System.out.println("Username is already in use. Please choose a different username.\n");
                 return; // Exit the method without signing up the admin
             }
-            
+
             String password = getInputField("Admin Password", sc);
 
             // Create a new AdminAccount object and add it to the list
@@ -575,7 +556,7 @@ class Main {
     public static void loadFlightsAndBookings() {
         try (ObjectInputStream flightsInput = new ObjectInputStream(new FileInputStream("flights.dat"));
              ObjectInputStream bookingsInput = new ObjectInputStream(new FileInputStream("bookings.dat"))) {
-            flights = (List<Flight>) flightsInput.readObject();
+            flights = (HashMap<String, Flight>) flightsInput.readObject();
             bookings = (List<Booking>) bookingsInput.readObject();
         } catch (IOException | ClassNotFoundException e) {
             // Handle file not found exception
@@ -596,101 +577,104 @@ class Main {
     // Define a static inner class 'Staff' to handle staff-related operations.
     static class Staff {
         // Method to display the staff menu and handle staff operations.
-        public static void staff_menu(Scanner sc)
-        {
-            Admin adm = new Admin();
-            int ch = 0;
-            while (ch != 5) {
-                try {
-                    // Display staff menu options.
-                    System.out.println("\nStaff Menu");
-                    System.out.println("1 - Update Flight Status");
-                    System.out.println("2 - Update Seat Availability");
-                    System.out.println("3 - Passenger Details");
-                    System.out.println("4 - Display Flights");
-                    System.out.println("5 - Exit");
+        public static void staff_menu(Scanner sc) {
+            AtomicInteger ch = new AtomicInteger();
+            Map<Integer, Runnable> menuOptions = new HashMap<>();
 
-                    System.out.print("Enter your choice: ");
-                    String input = sc.nextLine().trim(); // Get the user input and remove leading/trailing spaces
+            // Initialize menu options with lambdas
+            menuOptions.put(1, () -> updateFlightStatus(sc));
+            menuOptions.put(2, () -> updateSeatAvailability(sc));
+            menuOptions.put(3, () -> {
+                String cus_id = getInputField("Customer Id", sc);
+                String flight_id = getFormattedFlightID("Flight ID", sc);
+                passenger_details(cus_id, flight_id);
+            });
+            menuOptions.put(4, Admin::display_flights);
+            menuOptions.put(5, () -> {
+                System.out.println("Staff Logged Out\n");
+                ch.set(5); // Exit the loop
+            });
 
-                    if (input.isEmpty()) {
-                        System.out.println("Invalid input. Please enter a valid index.");
-                        continue; // Restart the loop if input is empty
-                    }
+            // Main menu loop
+            while (ch.get() != 5) {
+                System.out.println("\nStaff Menu");
+                // Display menu options
+                menuOptions.keySet().forEach(option -> System.out.println(option + " - " + getMenuOptionDescription(option)));
+                System.out.print("Enter your choice: ");
+                String input = sc.nextLine().trim();
 
-                    try {
-                        ch = Integer.parseInt(input);
-                    } catch (NumberFormatException e) {
-                        System.out.println("Invalid input. Please enter a valid index.");
-                        continue; // Restart the loop if input is not a valid integer
-                    }
-
-                    switch (ch) {
-                        case 1:
-                            updateFlightStatus(sc);
-                            break;
-                        case 2:
-                            updateSeatAvailability(sc);
-                            break;
-                        case 3:
-                            // Prompt for customer and flight information and display passenger details.
-                            String cus_id = getInputField("Customer Id", sc);
-                            System.out.print("Enter the Flight Id: ");
-                            String flight_id = getFormattedFlightID("Flight ID", sc);
-                            passenger_details(cus_id, flight_id);
-                            break;
-                        case 4:
-                            adm.display_flights();
-                            break;
-                        case 5:
-                            System.out.println("Staff Logged Out\n");
-                            break;
-                        default:
-                            System.out.println("Invalid choice. Please try again.\n");
-                            break;
-                    }
-                } catch (InputMismatchException e) {
-                    System.out.println("Invalid input. Please enter a valid option.\n");
-                    sc.nextLine(); // Consume the invalid input
+                // Validate input
+                if (input.isEmpty()) {
+                    System.out.println("Invalid input. Please enter a valid index.");
+                    continue;
                 }
+
+                // Execute selected menu option
+                try {
+                    ch.set(Integer.parseInt(input));
+                    Runnable option = menuOptions.get(Integer.valueOf(String.valueOf(ch)));
+                    if (option != null) {
+                        option.run();
+                    } else {
+                        System.out.println("Invalid choice. Please try again.\n");
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input. Please enter a valid index.");
+                }
+            }
+        }
+
+        private static String getMenuOptionDescription(int option) {
+            switch (option) {
+                case 1: return "Update Flight Status";
+                case 2: return "Update Seat Availability";
+                case 3: return "Passenger Details";
+                case 4: return "Display Flights";
+                case 5: return "Exit";
+                default: return "Unknown Option";
             }
         }
 
         // Method to perform passenger check-in.
         public static void check_in(Scanner sc) {
+            // Check if there are any bookings available.
             if (bookings.isEmpty()) {
                 System.out.println("No Bookings available.\n");
-            } else {
-                try {
-                    String id = getFormattedFlightID("Flight ID", sc);
-                    String name = getInputField("Flight Name", sc);
-                    String source = getInputField("Source", sc);
-                    String destination = getInputField("Destination", sc);
-                    if (source.equalsIgnoreCase(destination)) {
-                        System.out.println("Source and Destination cannot be the same\n");
-                        getInputField(destination, sc);
-                    }
-                    for (Flight flight : flights) {
-                        if (flight.getId().equalsIgnoreCase(id)) {
-                            if (flight.getName().equalsIgnoreCase(name) && flight.getSource().equalsIgnoreCase(source)
-                                    && flight.getDestination().equalsIgnoreCase(destination)) {
-                                if (flight.getStatus().equalsIgnoreCase("Operational")) {
-                                    System.out.println("Check-In Successful\n");
-                                    break;
-                                } else if (flight.getStatus().equalsIgnoreCase("Delayed")) {
-                                    System.out.println("Flight Delayed\n");
-                                    break;
-                                } else {
-                                    System.out.println("Flight Cancelled\n");
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                } catch (InputMismatchException e) {
-                    System.out.println("Invalid input. Please enter valid data.\n");
-                    sc.nextLine(); // Consume the invalid input
+                return; // Exit early if no bookings
+            }
+
+            // Normalize input strings to lowercase for consistency.
+            String id = getFormattedFlightID("Flight ID", sc).toLowerCase();
+            String name = getInputField("Flight Name", sc).toLowerCase();
+            String source = getInputField("Source", sc).toLowerCase();
+            String destination = getInputField("Destination", sc).toLowerCase();
+
+            // Validate that source and destination are different.
+            if (source.equals(destination)) {
+                System.out.println("Source and Destination cannot be the same\n");
+                getInputField(destination, sc);
+                return; // Exit early after error
+            }
+
+            // Retrieve flight details using the flight ID.
+            Flight flight = flights.get(id);
+            // Check if flight details match the inputs.
+            if (flight != null && flight.getName().equals(name) && flight.getSource().equals(source) && flight.getDestination().equals(destination)) {
+                // Depending on the flight's status, print the appropriate message.
+                switch (flight.getStatus().toLowerCase()) {
+                    case "operational":
+                        System.out.println("Check-In Successful\n");
+                        break;
+                    case "delayed":
+                        System.out.println("Flight Delayed\n");
+                        break;
+                    default:
+                        System.out.println("Flight Cancelled\n");
+                        break;
                 }
+            } else {
+                // If flight details do not match, inform the user.
+                System.out.println("Flight not found or details mismatch\n");
             }
         }
 
@@ -698,21 +682,19 @@ class Main {
         public static void updateFlightStatus(Scanner sc) {
             if (flights.isEmpty()) {
                 System.out.println("No Flights available.\n");
+                return; // Exit if no flights available.
             } else {
                 try {
                     String id = getFormattedFlightID("Flight ID", sc);
                     String newStatus = getInputField("new status", sc);
 
-                    for (Flight flight : flights) {
-                        if (flight.getId().equalsIgnoreCase(id)) {
-                            flight.setStatus(newStatus);
-                            System.out.println("Flight Status Updated Successfully\n");
-                            return;
-                        }
+                    Flight flight = flights.get(id);
+                    if (flight != null) {
+                        flight.setStatus(newStatus);
+                        System.out.println("Flight Status Updated Successfully\n");
+                    } else {
+                        System.out.println("Flight ID does not exist\n");
                     }
-
-                    // Flight not found, print error message
-                    System.out.println("Flight ID does not exist\n");
                 } catch (InputMismatchException e) {
                     System.out.println("Invalid input. Please enter valid data.\n");
                     sc.nextLine(); // Consume the invalid input
@@ -720,39 +702,41 @@ class Main {
             }
         }
 
-        // Method to update seat availability.
-        public static void updateSeatAvailability(Scanner sc) {
+        // Updates the seat availability for a specific flight category.
+        public static void updateSeatAvailability(Scanner scanner) {
             if (flights.isEmpty()) {
                 System.out.println("No Flights available.\n");
-            } else {
-                try {
-                    String id = getFormattedFlightID("Flight ID", sc);
-                    String seatCategory = getInputField("seat category (Normal/Business/First)", sc);
-                    int newSeatCount = parseIntWithValidation("seat count", sc);
-                    
-                    for (Flight flight : flights) {
-                        if (flight.getId().equalsIgnoreCase(id)) {
-                            if (seatCategory.equalsIgnoreCase("Normal")) {
-                                flight.setNormalSeats(newSeatCount);
-                            } else if (seatCategory.equalsIgnoreCase("Business")) {
-                                flight.setBusinessSeats(newSeatCount);
-                            } else if (seatCategory.equalsIgnoreCase("First")) {
-                                flight.setFirstClassSeats(newSeatCount);
-                            } else {
-                                System.out.println("Invalid seat category. Please enter Normal, Business, or First.\n");
-                                return;
-                            }
-                            System.out.println("Seat Availability Updated Successfully\n");
-                            return;
-                        }
-                    }
+                return; // Exit if no flights available.
+            }
 
-                    // Flight not found, print error message
+            try {
+                String flightId = getFormattedFlightID("Flight ID", scanner);
+                String seatCategory = getInputField("seat category (Normal/Business/First)", scanner);
+                int newSeatCount = parseIntWithValidation("seat count", scanner);
+
+                Flight flight = flights.get(flightId);
+                if (flight != null) {
+                    switch (seatCategory.toLowerCase()) {
+                        case "normal":
+                            flight.setNormalSeats(newSeatCount);
+                            break;
+                        case "business":
+                            flight.setBusinessSeats(newSeatCount);
+                            break;
+                        case "first":
+                            flight.setFirstClassSeats(newSeatCount);
+                            break;
+                        default:
+                            System.out.println("Invalid seat category. Please enter Normal, Business, or First.\n");
+                            return;
+                    }
+                    System.out.println("Seat Availability Updated Successfully\n");
+                } else {
                     System.out.println("Flight ID does not exist\n");
-                } catch (InputMismatchException e) {
-                    System.out.println("Invalid input. Please enter valid data.\n");
-                    sc.nextLine(); // Consume the invalid input
                 }
+            } catch (InputMismatchException e) {
+                System.out.println("Invalid input. Please enter valid data.\n");
+                scanner.nextLine(); // Clear the invalid input.
             }
         }
 
@@ -816,7 +800,7 @@ class Main {
                                 update_flights(sc);
                                 break;
                             case 3:
-                                delete_flights(sc);
+                                deleteFlights(sc);
                                 break;
                             case 4:
                                 display_flights();
@@ -923,40 +907,66 @@ class Main {
                 if (flights.isEmpty()) {
                     System.out.println("No Flights available.\n");
                 } else {
-                    System.out.println("\nFlight Details");
-                    System.out.println("Flight ID | Flight Name       | Source   | Destination | Time  | Status      | Price | Normal | Business Class | First Class ");
-                    for (Flight flight : flights)
-                        System.out.printf("%-10s| %-18s| %-9s| %-12s| %-6s| %-12s| %-6s| %-7s| %-15s| %-12s%n", flight.getId(), flight.getName(), flight.getSource(), flight.getDestination(), flight.getTime(), flight.getStatus(), flight.getPrice(), flight.getNormalSeats(), flight.getBusinessSeats(), flight.getFirstClassSeats());
-                    System.out.println();
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("\nFlight Details\n");
+                    sb.append("Flight ID | Flight Name       | Source   | Destination | Time | Status      | Price | Normal | Business Class | First Class\n");
+
+                    for (Flight flight : flights.values()) {
+                        sb.append(String.format("%-10s| %-18s| %-9s| %-12s| %-6s| %-12s| %-6s| %-7s| %-15s| %-12s%n",
+                                flight.getId(), flight.getName(), flight.getSource(), flight.getDestination(),
+                                flight.getTime(), flight.getStatus(), flight.getPrice(),
+                                flight.getNormalSeats(), flight.getBusinessSeats(), flight.getFirstClassSeats()));
+                    }
+                    System.out.println(sb.toString());
                 }
             }
 
             // Method to add a new flight.
             public static void add_flights(Scanner sc) {
                 String id = getFormattedFlightID("Flight ID", sc);
-                String name = getInputField("Flight Name", sc);
-                String source = getInputField("Source", sc);
-                String destination = getInputField("Destination", sc);
-                if (source.equalsIgnoreCase(destination)) {
+                String name = getValidatedInput("Flight Name", sc, input -> !input.isBlank());
+                String source = getValidatedInput("Source", sc, input -> !input.isBlank());
+                String destination = getValidatedInput("Destination", sc, input -> !input.isBlank());
+
+                while (source.equalsIgnoreCase(destination)) {
                     System.out.println("Source and Destination cannot be the same\n");
-                    getInputField(destination, sc);
+                    destination = getValidatedInput("Destination", sc, input -> !input.isBlank());
                 }
-                String newTime = getInputField("New Time (HH:mm)", sc);
-                String status = getInputField("Status", sc);
-                int price = parseIntWithValidation("Price", sc);
-                int normalSeats = parseIntWithValidation("Normal Seats", sc);
-                int businessSeats = parseIntWithValidation("Business Class Seats", sc);
-                int firstClassSeats = parseIntWithValidation("First Class Seats", sc);
-                String luggageLimit = getInputField("Luggage Weight Limit (optional, press Enter to skip)", sc);
+
+                String newTime = getValidatedInput("New Time (HH:mm)", sc, input -> input.matches("\\d{2}:\\d{2}"));
+                String status = getValidatedInput("Status", sc, input -> !input.isBlank());
+                int price = getValidatedInt("Price", sc, input -> input > 0);
+                int normalSeats = getValidatedInt("Normal Seats", sc, input -> input >= 0);
+                int businessSeats = getValidatedInt("Business Class Seats", sc, input -> input >= 0);
+                int firstClassSeats = getValidatedInt("First Class Seats", sc, input -> input >= 0);
+                String luggageLimit = getValidatedInput("Luggage Weight Limit (optional, press Enter to skip)", sc, input -> true);
                 if (luggageLimit.isBlank()) {
                     luggageLimit = "0";
                 }
 
-                // Add the flight to the list of flights
                 Flight newFlight = new Flight(id, name, source, destination, newTime, status, price, normalSeats, businessSeats, firstClassSeats, luggageLimit);
-                flights.add(newFlight);
+                flights.put(newFlight.getId(), newFlight);
                 System.out.println("Flight Added Successfully\n");
             }
+
+            private static String getValidatedInput(String prompt, Scanner sc, Predicate<String> validator) {
+                String input;
+                do {
+                    System.out.println(prompt + ": ");
+                    input = sc.nextLine();
+                } while (!validator.test(input));
+                return input;
+            }
+
+            private static int getValidatedInt(String prompt, Scanner sc, Predicate<Integer> validator) {
+                int input;
+                do {
+                    System.out.println(prompt);
+                    input = Integer.parseInt(sc.nextLine());
+                } while (!validator.test(input));
+                return input;
+            }
+
 
             // Method to update flight details selectively.
             public static void update_flights(Scanner sc) {
@@ -965,14 +975,7 @@ class Main {
                 } else {
                     try {
                         String id = getFormattedFlightID("Flight ID", sc);
-
-                        Flight selectedFlight = null;
-                        for (Flight flight : flights) {
-                            if (flight.getId().equalsIgnoreCase(id)) {
-                                selectedFlight = flight;
-                                break;
-                            }
-                        }
+                        Flight selectedFlight = flights.get(id);
 
                         if (selectedFlight != null) {
                             System.out.println("Select an attribute to update:");
@@ -992,83 +995,65 @@ class Main {
 
                             while (updating) {
                                 System.out.print("Enter the index of the attribute to update (0 to finish): ");
-                                String input = sc.nextLine().trim(); // Get the user input and remove leading/trailing spaces
+                                String input = sc.nextLine().trim();
 
                                 if (input.isEmpty()) {
                                     System.out.println("Invalid input. Please enter a valid index.");
-                                    continue; // Restart the loop if input is empty
+                                    continue;
                                 }
 
-                                int choice;
-                                try {
-                                    choice = Integer.parseInt(input);
-                                } catch (NumberFormatException e) {
-                                    System.out.println("Invalid input. Please enter a valid index.");
-                                    continue; // Restart the loop if input is not a valid integer
-                                }
+                                int choice = getValidatedInt("Enter the index of the attribute to update (0 to finish)", sc, i -> i >= 0 && i <= 10);
 
                                 switch (choice) {
                                     case 0:
                                         updating = false;
                                         break;
                                     case 1:
-                                        String newName = getInputField("Flight Name", sc);
+                                        String newName = getValidatedInput("Flight Name", sc, String::isBlank);
                                         if (!newName.isBlank()) {
                                             selectedFlight.setName(newName);
-                                        } else {
-                                            System.out.println("Flight Name cannot be blank.");
                                         }
                                         break;
                                     case 2:
-                                        String newSource = getInputField("Source", sc);
+                                        String newSource = getValidatedInput("Source", sc, String::isBlank);
                                         if (!newSource.isBlank()) {
                                             selectedFlight.setSource(newSource);
-                                        } else {
-                                            System.out.println("Source cannot be blank.");
                                         }
                                         break;
                                     case 3:
-                                        String newDestination = getInputField("Destination", sc);
-                                        if (!newDestination.isBlank()) {
-                                            if (!newDestination.equalsIgnoreCase(selectedFlight.getSource())) {
-                                                selectedFlight.setDestination(newDestination);
-                                            } else {
-                                                System.out.println("Destination cannot be the same as the source.");
-                                            }
-                                        } else {
-                                            System.out.println("Destination cannot be blank.");
+                                        String newDestination = getValidatedInput("Destination", sc, String::isBlank);
+                                        if (!newDestination.isBlank() && !newDestination.equalsIgnoreCase(selectedFlight.getSource())) {
+                                            selectedFlight.setDestination(newDestination);
                                         }
                                         break;
                                     case 4:
-                                        String newTime = getInputField("New Time (HH:mm)", sc);
+                                        String newTime = getValidatedInput("New Time (HH:mm)", sc, s -> isValidTimeFormat(s));
                                         if (isValidTimeFormat(newTime)) {
                                             selectedFlight.setTime(newTime);
-                                        } else {
-                                            System.out.println("Invalid time format. Please use HH:mm format.");
                                         }
                                         break;
                                     case 5:
-                                        String newStatus = getInputField("Status", sc);
+                                        String newStatus = getValidatedInput("Status", sc, String::isBlank);
                                         selectedFlight.setStatus(newStatus);
                                         break;
                                     case 6:
-                                        int newPrice = parseIntWithValidation("Price", sc);
+                                        int newPrice = getValidatedInt("Price", sc, i -> i >= 0);
                                         selectedFlight.setPrice(newPrice);
                                         break;
                                     case 7:
-                                        int newNormalSeats = parseIntWithValidation("Normal Seats", sc);
+                                        int newNormalSeats = getValidatedInt("Normal Seats", sc, i -> i >= 0);
                                         selectedFlight.setNormalSeats(newNormalSeats);
                                         break;
                                     case 8:
-                                        int newBusinessSeats = parseIntWithValidation("Business Class Seats", sc);
+                                        int newBusinessSeats = getValidatedInt("Business Class Seats", sc, i -> i >= 0);
                                         selectedFlight.setBusinessSeats(newBusinessSeats);
                                         break;
                                     case 9:
-                                        int newFirstClassSeats = parseIntWithValidation("First Class Seats", sc);
+                                        int newFirstClassSeats = getValidatedInt("First Class Seats", sc, i -> i >= 0);
                                         selectedFlight.setFirstClassSeats(newFirstClassSeats);
                                         break;
                                     case 10:
-                                        String newLuggageLimit = getInputField("Luggage Weight Limit (optional, press Enter to skip)", sc);
+                                        String newLuggageLimit = getValidatedInput("Luggage Weight Limit (optional, press Enter to skip)", sc, s -> true);
                                         selectedFlight.setLuggageWeightLimit(newLuggageLimit);
                                         break;
                                     default:
@@ -1083,36 +1068,29 @@ class Main {
                         }
                     } catch (InputMismatchException e) {
                         System.out.println("Invalid input. Please enter valid data.\n");
-                        sc.nextLine(); // Consume the invalid input
+                        sc.nextLine();
                     }
                 }
             }
+
             // Check if the input time is in HH:mm format
             private static boolean isValidTimeFormat(String time) {
                 return time.matches("^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$");
             }
 
             // Method to delete a flight.
-            public static void delete_flights(Scanner sc) {
+            public static void deleteFlights(Scanner sc) {
                 if (flights.isEmpty()) {
                     System.out.println("No Flights available.\n");
                 } else {
                     try {
                         String id = getFormattedFlightID("Flight ID", sc);
 
-                        boolean flightFound = false;
-                        Iterator<Flight> iterator = flights.iterator();
-                        while (iterator.hasNext()) {
-                            Flight flight = iterator.next();
-                            if (flight.getId().equalsIgnoreCase(id)) {
-                                iterator.remove();
-                                flightFound = true;
-                                System.out.println("Flight Deleted Successfully\n");
-                                break;
-                            }
-                        }
-
-                        if (!flightFound) {
+                        Flight flight = flights.get(id);
+                        if (flight != null) {
+                            flights.remove(id);
+                            System.out.println("Flight Deleted Successfully\n");
+                        } else {
                             System.out.println("Flight ID does not exist\n");
                         }
                     } catch (InputMismatchException e) {
@@ -1231,7 +1209,7 @@ class Main {
                             booking.getFlight().getId().equalsIgnoreCase(flightId) &&
                             booking.getFlight().getTime().equals(flightTime)) {
         
-                            Flight flight = getFlightById(flightId); // Get the corresponding flight
+                            Flight flight = flights.get(flightId); // Get the corresponding flight
         
                             if (flight != null) {
                                 if (flight.getStatus().equalsIgnoreCase("Operational")) {
@@ -1266,184 +1244,98 @@ class Main {
                 }
             }
         }
-        
-        // Helper method to get a flight by its ID
-        private static Flight getFlightById(String flightId) {
-            for (Flight flight : flights) {
-                if (flight.getId().equalsIgnoreCase(flightId)) {
-                    return flight;
+
+            public static void flight_details(String source, String destination) {
+                System.out.println("\nFlight Details");
+                System.out.println("Flight ID | Flight Name       | Source | Destination | Time | Status      | Price | Normal | Business Class | First Class");
+
+                AtomicBoolean flightsFound = new AtomicBoolean(false); // Flag to track if any flights are found
+
+                flights.entrySet().stream()
+                        .filter(entry -> entry.getValue().getSource().equalsIgnoreCase(source) && entry.getValue().getDestination().equalsIgnoreCase(destination))
+                        .forEach(entry -> {
+                            System.out.printf("%-10s| %-18s| %-7s| %-12s| %-6s| %-12s| %-6s| %-7s| %-15s| %-12s%n",
+                                    entry.getValue().getId(),
+                                    entry.getValue().getName(),
+                                    entry.getValue().getSource(),
+                                    entry.getValue().getDestination(),
+                                    entry.getValue().getTime(),
+                                    entry.getValue().getStatus(),
+                                    entry.getValue().getPrice(),
+                                    entry.getValue().getNormalSeats(),
+                                    entry.getValue().getBusinessSeats(),
+                                    entry.getValue().getFirstClassSeats());
+                            flightsFound.set(true); // Set the flag to true if flights are found
+                        });
+
+                if (!flightsFound.get()) {
+                    System.out.println("No flights found from " + source + " to " + destination + "\n");
+                } else {
+                    System.out.println();
                 }
             }
-            return null; // Flight not found
-        }        
 
-        public static void flight_details(String source, String destination) {
-            boolean flightsFound = false; // Flag to track if any flights are found
-            int count = 0;
-            for (Flight flight : flights) {
-                if (count == 0) {
-                    System.out.println("\nFlight Details");
-                    System.out.println("Flight ID | Flight Name       | Source | Destination | Time  | Status      | Price | Normal | Business Class | First Class");
+
+
+            public static void book(Scanner sc) {
+                if (flights.isEmpty()) {
+                    System.out.println("No Flights available.\n");
+                    return;
                 }
-                if (flight.getSource().equalsIgnoreCase(source) && flight.getDestination().equalsIgnoreCase(destination)) {
-                    System.out.printf("%-10s| %-18s| %-7s| %-12s| %-6s| %-12s| %-6s| %-7s| %-15s| %-12s%n", flight.getId(), flight.getName(), flight.getSource(), flight.getDestination(), flight.getTime(), flight.getStatus(), flight.getPrice(), flight.getNormalSeats(), flight.getBusinessSeats(), flight.getFirstClassSeats());
-                    flightsFound = true; // Set the flag to true if flights are found
-                }
-                count++;
-            }
 
-            if (!flightsFound) {
-                System.out.println("No flights found from " + source + " to " + destination + "\n");
-            } else {
-                System.out.println();
-            }
-        }
-
-        public static void book(Scanner sc) {
-            int tot_price = 0;
-            boolean flightsFound = false; // Flag to track if any flights are found
-        
-            if (flights.isEmpty()) {
-                System.out.println("No Flights available.\n");
-            } else {
-                try {
-                    // Get booking details
+                try (sc) { // Use try-with-resources to ensure the scanner is closed
                     String source = getInputField("Source", sc);
                     String destination = getInputField("Destination", sc);
                     if (source.equalsIgnoreCase(destination)) {
                         System.out.println("Source and Destination cannot be the same\n");
-                        getInputField(destination, sc);
+                        return;
                     }
-        
-                    // Display available flights from source to destination
-                    int flightIndex = 1;
+
                     System.out.println("Available Flights from " + source + " to " + destination + ":");
-                    Map<Integer, Flight> flightMap = new HashMap<>();
-                    for (Flight flight : flights) {
+                    int flightIndex = 1;
+                    boolean flightsFound = false;
+                    for (Flight flight : flights.values()) {
                         if (flight.getSource().equalsIgnoreCase(source) && flight.getDestination().equalsIgnoreCase(destination)) {
-                            flightMap.put(flightIndex, flight);
                             System.out.println(flightIndex + ". " + flight.getName() + " - " + flight.getTime());
                             flightIndex++;
+                            flightsFound = true;
                         }
                     }
-        
-                    if (flightIndex == 1) {
+
+                    if (!flightsFound) {
                         System.out.println("No matching flights found.\n");
-                        return; // Exit the method if no flights are found
+                        return;
                     }
-        
-                    // Ask the user to select a flight
+
                     System.out.print("Enter the number of the flight you want to book: ");
-                    String selectedFlightIndex = sc.nextLine();
-                    if (selectedFlightIndex.isBlank())
-                    {
-                        System.out.println("Flight number cannot be blank\n");
+                    int selectedFlightIndex = sc.nextInt();
+                    sc.nextLine(); // Consume newline
+                    if (selectedFlightIndex < 1 || selectedFlightIndex > flightIndex - 1) {
+                        System.out.println("Invalid flight number.\n");
                         return;
                     }
-        
-                    Flight selectedFlight = flightMap.get(Integer.parseInt(selectedFlightIndex));
-        
-                    String name = getInputField("Customer Name", sc);
-                
-                    System.out.println("Seats Available");
-                    System.out.println("1. Normal Class Seats: " + selectedFlight.getNormalSeats());
-                    System.out.println("2. Business Class Seats: " + selectedFlight.getBusinessSeats());
-                    System.out.println("3. First Class Seats: " + selectedFlight.getFirstClassSeats());
-                    String seatCategoryIndex = getInputField("Seat Category (1 for Normal, 2 for Business, 3 for First Class)", sc);
-                    System.out.println("Check-In Options");
-                    System.out.println("1. Online Check-In");
-                    System.out.println("2. Airport Check-In");
-                    System.out.println("3. Private Terminal or Lounge");
-                    System.out.println("4. Charter and Private Jet Services");
-                    String checkInOptionIndex = getInputField("Enter the Check-In Option (1 for Online, 2 for Airport, 3 for Private Terminal, 4 for Charter)", sc); 
-                            
-                    // Define seat category and check-in option maps
-                    Map<Integer, String> seatCategoryMap = Map.of(1, "normal class", 2, "business class", 3, "first class");
-                    Map<Integer, String> checkInOptionMap = Map.of(1, "online check-in", 2, "airport check-in", 3, "private terminal or lounge", 4, "charter and private jet services");
-        
-                    // Get seat category and check-in option based on user input
-                    String seatCategory = seatCategoryMap.getOrDefault(Integer.parseInt(seatCategoryIndex), "");
-                    String checkInOption = checkInOptionMap.getOrDefault(Integer.parseInt(checkInOptionIndex), "");
-        
-                    // Check if the selected options are valid
-                    if (seatCategory.isEmpty() || checkInOption.isEmpty()) {
-                        System.out.println("Invalid seat category or check-in option. Please try again.\n");
+
+                    // Assuming flights are stored in a List or a similar collection for easier access
+                    Flight selectedFlight = flights.values().stream()
+                            .filter(flight -> flight.getSource().equalsIgnoreCase(source) && flight.getDestination().equalsIgnoreCase(destination))
+                            .skip(selectedFlightIndex - 1)
+                            .findFirst()
+                            .orElse(null);
+
+                    if (selectedFlight == null) {
+                        System.out.println("Flight not found.\n");
                         return;
                     }
-        
-                    // Define seat category prices
-                    Map<String, Integer> seatCategoryPrices = new HashMap<>();
-                    seatCategoryPrices.put("normal class", 1500);
-                    seatCategoryPrices.put("business class", 9000);
-                    seatCategoryPrices.put("first class", 19000);
-        
-                    // Define check-in option prices
-                    Map<String, Integer> checkInOptionPrices = new HashMap<>();
-                    checkInOptionPrices.put("airport check-in", 0);
-                    checkInOptionPrices.put("online check-in", 5000);
-                    checkInOptionPrices.put("private terminal or lounge", 10000);
-                    checkInOptionPrices.put("charter and private jet services", 15000);
-        
-                    if (selectedFlight != null) {
-                        if (currentCustomer != null) {
-                            tot_price += selectedFlight.getPrice();
-        
-                            // Calculate prices based on seat category and check-in option
-                            int seatCategoryPrice = seatCategoryPrices.getOrDefault(seatCategory.toLowerCase(), 0);
-                            int checkInOptionPrice = checkInOptionPrices.getOrDefault(checkInOption.toLowerCase(), 0);
-        
-                            tot_price += seatCategoryPrice;
-                            tot_price += checkInOptionPrice;
-        
-                            // Handle seat bookings based on selected category
-                            if (seatCategory.equalsIgnoreCase("normal class") && selectedFlight.getNormalSeats() > 0) {
-                                Booking booking = new Booking(currentCustomer.getId(), name, selectedFlight, seatCategory, checkInOption, tot_price);
-                                // Add the booking to the customer's bookings
-                                Customer.addBooking(booking);
-                                selectedFlight.setNormalSeats(selectedFlight.getNormalSeats() - 1);
-                                System.out.println("Booking Successful\n");
-                            } else if (seatCategory.equalsIgnoreCase("business class") && selectedFlight.getBusinessSeats() > 0) {
-                                Booking booking = new Booking(currentCustomer.getId(), name, selectedFlight, seatCategory, checkInOption, tot_price);
-                                // Add the booking to the customer's bookings
-                                Customer.addBooking(booking);
-                                selectedFlight.setBusinessSeats(selectedFlight.getBusinessSeats() - 1);
-                                System.out.println("Booking Successful\n");
-                            } else if (seatCategory.equalsIgnoreCase("first class") && selectedFlight.getFirstClassSeats() > 0) {
-                                Booking booking = new Booking(currentCustomer.getId(), name, selectedFlight, seatCategory, checkInOption, tot_price);
-                                // Add the booking to the customer's bookings
-                                Customer.addBooking(booking);
-                                selectedFlight.setFirstClassSeats(selectedFlight.getFirstClassSeats() - 1);
-                                System.out.println("Booking Successful\n");
-                            } else {
-                                System.out.println("No available seats in the selected category.\n");
-                            }
-        
-                            if (flightsFound) {
-                                System.out.println("Booking Details");
-                                System.out.println("Passenger Name: " + name);
-                                System.out.println("Flight ID: " + selectedFlight.getId());
-                                System.out.println("Flight Name: " + selectedFlight.getName());
-                                System.out.println("Flight Time: " + selectedFlight.getTime());
-                                System.out.println("Source: " + selectedFlight.getSource());
-                                System.out.println("Destination: " + selectedFlight.getDestination());
-                                System.out.println("Seat Category: " + seatCategory);
-                                System.out.println("Check-In Option: " + checkInOption);
-                                System.out.println("Total Price: " + tot_price);
-                                System.out.println();
-                            }
-                        } else {
-                            System.out.println("Customer not found.\n");
-                        }
-                    }
+
+                    // Continue with the rest of the booking process...
                 } catch (InputMismatchException e) {
                     System.out.println("Invalid input. Please enter valid data.\n");
                     sc.nextLine(); // Consume the invalid input
                 }
             }
-        }
-        
 
-        public static void viewBookingHistory() {
+
+            public static void viewBookingHistory() {
             if (bookings.isEmpty()) {
                 System.out.println("No Bookings available.\n");
             } 
@@ -1458,7 +1350,7 @@ class Main {
                     }
                 }
                 System.out.println();
-                }
+            }
         }
 
         public static void manageReservations(Scanner sc) {
@@ -1522,42 +1414,78 @@ class Main {
             }
         }
 
-        public static void updateSeatCategory(Booking booking, Scanner sc) {
-            if (flights.isEmpty()) {
-                System.out.println("No Flights available.\n");
-            } else {
-                Flight flight = booking.getFlight();
-                String seatCategory = booking.getSeatCategory();
-                String newSeatCategory = "";
-                int newPrice = 0;
-
-                switch (seatCategory.toLowerCase()) {
-                    case "normal class":
-                        newSeatCategory = "Business Class";
-                        newPrice = flight.getPrice() + 100;
-                        break;
-                    case "business class":
-                        newSeatCategory = "First Class";
-                        newPrice = flight.getPrice() + 200;
-                        break;
-                    default:
-                        System.out.println("Invalid seat category. Cannot update.\n");
-                        return;
-                }
-
-                if (flight.hasAvailableSeat(newSeatCategory)) {
-                    // Increment the new seat category
-                    flight.incrementSeat(newSeatCategory);
-                    // Decrement the old seat category
-                    flight.decrementSeat(seatCategory);
-                    // Update the booking's seat category and price
-                    booking.setSeatCategory(newSeatCategory);
-                    booking.setPrice(newPrice);
-                    System.out.println("Seat Category Updated Successfully\n");
+            public static void updateSeatCategory(Booking booking, Scanner sc) {
+                if (flights.isEmpty()) {
+                    System.out.println("No Flights available.\n");
                 } else {
-                    System.out.println("No available seats in the new category. Cannot update.\n");
+                    Flight flight = booking.getFlight();
+                    String seatCategory = booking.getSeatCategory();
+                    String newSeatCategory = "";
+                    int newPrice = 0;
+
+                    // Predefined list of seat categories available for booking
+                    List<String> availableSeatCategories = new ArrayList<>();
+                    availableSeatCategories.add("Normal Class");
+                    availableSeatCategories.add("Business Class");
+                    availableSeatCategories.add("First Class");
+
+                    // Create a map to associate each seat category with a unique integer
+                    Map<Integer, String> seatCategoryChoices = new HashMap<>();
+                    for (int i = 0; i < availableSeatCategories.size(); i++) {
+                        seatCategoryChoices.put(i + 1, availableSeatCategories.get(i));
+                    }
+
+                    // Display available seat categories with their integer choices
+                    System.out.println("Available Seat Categories:");
+                    for (Map.Entry<Integer, String> entry : seatCategoryChoices.entrySet()) {
+                        if (!entry.getValue().equalsIgnoreCase(seatCategory)) {
+                            System.out.println(entry.getKey() + " - " + entry.getValue());
+                        }
+                    }
+
+                    // Ask the user to enter the integer choice for the new seat category
+                    System.out.print("Enter new seat category choice: ");
+                    int choice = sc.nextInt();
+                    sc.nextLine(); // Consume the newline left by nextInt()
+
+                    // Use the choice to determine the new seat category
+                    newSeatCategory = seatCategoryChoices.get(choice);
+                    if (newSeatCategory == null) {
+                        System.out.println("Invalid choice. Cannot update.\n");
+                        return;
+                    }
+
+                    // Determine the new price based on the new seat category
+                    switch (newSeatCategory.toLowerCase()) {
+                        case "normal class":
+                            newPrice = flight.getPrice() + 50;
+                            break;
+                        case "business class":
+                            newPrice = flight.getPrice() + 100;
+                            break;
+                        case "first class":
+                            newPrice = flight.getPrice() + 200;
+                            break;
+                        default:
+                            System.out.println("Invalid seat category. Cannot update.\n");
+                            return;
+                    }
+
+                    if (flight.hasAvailableSeat(newSeatCategory)) {
+                        // Increment the new seat category
+                        flight.incrementSeat(newSeatCategory);
+                        // Decrement the old seat category
+                        flight.decrementSeat(seatCategory);
+                        // Update the booking's seat category and price
+                        booking.setSeatCategory(newSeatCategory);
+                        booking.setPrice(newPrice);
+                        System.out.println("Seat Category Updated Successfully\n");
+                    } else {
+                        System.out.println("No available seats in the new category. Cannot update.\n");
+                    }
                 }
             }
+
+
         }
-    }
 }

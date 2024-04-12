@@ -1,0 +1,6 @@
+# Ignore all .dat files
+*.dat
+# Ignore all .class files
+*.class
+# Ignore all .idea files
+*.idea
