@@ -32,9 +32,6 @@ Contributions to this project are welcome. Please follow the Contributing Guidel
 ## License 📄
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments 🌟
-Special thanks to the open-source community for valuable contributions and inspirations.
-
 Happy coding!
 
 ## Todo ⏰
